@@ -132,8 +132,8 @@ test("repair planner turns failed review criteria into targeted capabilities", a
   const runtime = new CreativeRuntime({} as never);
   const editable = spec(working);
   editable.acceptanceCriteria = [
-    { id: "audio.clean", description: "Dialogue and music remain balanced without clipping", kind: "audio", required: true },
-    { id: "captions.safe", description: "Captions remain readable inside safe areas", kind: "visual", required: true }
+    { id: "audio.clean", description: "Dialogue and music remain balanced without clipping", required: true },
+    { id: "captions.safe", description: "Captions remain readable inside safe areas", required: true }
   ];
   const created = await runtime.execute("creative.job.create", { spec: editable }) as any;
   await runtime.execute("creative.job.review", {

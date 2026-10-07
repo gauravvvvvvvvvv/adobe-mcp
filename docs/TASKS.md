@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: master recipes + deterministic repair planning + state reconciliation after `152c170c`.
+Last updated commit target: repair-planner test typing cleanup after `61a1aab5`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
