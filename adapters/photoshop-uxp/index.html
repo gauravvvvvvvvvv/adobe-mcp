@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Adobe MCP</title>
+  <style>
+    body { margin: 0; padding: 10px; font: 12px system-ui, sans-serif; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    #dot { width: 8px; height: 8px; border-radius: 50%; background: #777; }
+    #status { opacity: .85; }
+    small { display: block; margin-top: 8px; opacity: .6; }
+  </style>
+</head>
+<body>
+  <div class="row"><span id="dot"></span><span id="status">Connecting to Adobe MCP…</span></div>
+  <small>No refresh required. The bridge reconnects automatically.</small>
+  <script src="main.js"></script>
+</body>
+</html>
