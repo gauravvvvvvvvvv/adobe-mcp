@@ -24,7 +24,8 @@
     "doctor": "tsx src/doctor.ts",
     "install:windows": "powershell -ExecutionPolicy Bypass -File scripts/install-windows.ps1",
     "uninstall:windows": "powershell -ExecutionPolicy Bypass -File scripts/uninstall-windows.ps1",
-    "check": "npm run typecheck && npm run build"
+    "check": "npm run typecheck && npm test && npm run build",
+    "test": "node --import tsx --test tests/**/*.test.ts"
   },
   "keywords": [
     "mcp",

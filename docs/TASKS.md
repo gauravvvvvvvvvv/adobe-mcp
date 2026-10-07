@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: semantic compiler implementation after `0b487bfc`.
+Last updated commit target: compiler regression tests after `4ff6475b`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -125,9 +125,9 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 ## Tests and quality
 
 - [ ] Unit tests for EditSpec validation.
-- [ ] Unit tests for capability routing and runtime jobs.
-- [ ] Unit tests for script escaping/injection safety.
-- [ ] Static syntax tests for generated ExtendScript.
+- [~] Unit tests cover compiler capability routing; persistent runtime-job tests still pending.
+- [x] Unit tests for script escaping/injection safety.
+- [x] Static syntax tests for generated Premiere/AE/Illustrator ExtendScript output.
 - [ ] Broker reconnect test with mock WebSocket adapter.
 - [ ] Media review/validation tests using generated fixture media.
 - [ ] Manual Premiere smoke-test script/checklist.
