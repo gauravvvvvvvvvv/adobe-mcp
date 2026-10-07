@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionManifest Version="7.0"
+  ExtensionBundleId="com.gaurav.adobe-mcp"
+  ExtensionBundleVersion="0.1.0"
+  ExtensionBundleName="Adobe MCP">
+  <ExtensionList>
+    <Extension Id="com.gaurav.adobe-mcp.panel" Version="0.1.0"/>
+  </ExtensionList>
+
+  <ExecutionEnvironment>
+    <HostList>
+      <Host Name="PPRO" Version="[14.0,99.9]"/>
+      <Host Name="AEFT" Version="[17.0,99.9]"/>
+      <Host Name="ILST" Version="[24.0,99.9]"/>
+      <Host Name="IDSN" Version="[15.0,99.9]"/>
+    </HostList>
+    <LocaleList>
+      <Locale Code="All"/>
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="10.0"/>
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+
+  <DispatchInfoList>
+    <Extension Id="com.gaurav.adobe-mcp.panel">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./index.html</MainPath>
+          <CEFCommandLine>
+            <Parameter>--enable-nodejs</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+          <StartOn>
+            <Event>applicationActivate</Event>
+          </StartOn>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Adobe MCP</Menu>
+          <Geometry>
+            <Size>
+              <Height>120</Height>
+              <Width>300</Width>
+            </Size>
+            <MinSize>
+              <Height>80</Height>
+              <Width>220</Width>
+            </MinSize>
+            <MaxSize>
+              <Height>600</Height>
+              <Width>800</Width>
+            </MaxSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>
