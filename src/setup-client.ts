@@ -21,7 +21,7 @@ function run(command: string, args: string[]) {
 }
 
 function usage(): never {
-  console.error("Usage: adobe-mcp-setup --client codex|claude [--server-command adobe-mcp] [--force]");
+  console.error("Usage: adobe-mcp-setup --client codex|claude [--server-command adobe-mcp] [--scope user|local|project] [--force]");
   process.exit(2);
 }
 
@@ -30,6 +30,24 @@ if (client !== "codex" && client !== "claude") usage();
 
 const serverCommand = value("--server-command") ?? "adobe-mcp";
 const force = process.argv.includes("--force");
+const requestedScope = value("--scope");
+const claudeScope = requestedScope ?? "user";
+if (client === "codex" && requestedScope) {
+  console.error(JSON.stringify({
+    ok: false,
+    client,
+    error: "--scope is only supported for Claude Code setup"
+  }, null, 2));
+  process.exit(2);
+}
+if (client === "claude" && !["user", "local", "project"].includes(claudeScope)) {
+  console.error(JSON.stringify({
+    ok: false,
+    client,
+    error: "Invalid Claude Code scope. Use user, local or project."
+  }, null, 2));
+  process.exit(2);
+}
 
 if (client === "codex") {
   const existing = run("codex", ["mcp", "get", "adobe"]);
@@ -62,13 +80,24 @@ if (client === "codex") {
     }, null, 2));
     process.exit(1);
   }
+  const verified = run("codex", ["mcp", "get", "adobe"]);
+  if (!verified.ok) {
+    console.error(JSON.stringify({
+      ok: false,
+      changed: true,
+      client,
+      stage: "verify",
+      error: verified.stderr || verified.stdout || "Codex configuration was written but could not be read back."
+    }, null, 2));
+    process.exit(1);
+  }
   console.log(JSON.stringify({
     ok: true,
     changed: true,
     client,
     command: serverCommand,
     verification: "codex mcp get adobe",
-    output: added.stdout
+    output: verified.stdout || added.stdout
   }, null, 2));
   process.exit(0);
 }
@@ -93,8 +122,8 @@ if (existing.ok && force) {
 }
 
 const commandArgs = process.platform === "win32"
-  ? ["mcp", "add", "--scope", "user", "adobe", "--", "cmd", "/c", serverCommand]
-  : ["mcp", "add", "--scope", "user", "adobe", "--", serverCommand];
+  ? ["mcp", "add", "--transport", "stdio", "--scope", claudeScope, "adobe", "--", "cmd", "/c", serverCommand]
+  : ["mcp", "add", "--transport", "stdio", "--scope", claudeScope, "adobe", "--", serverCommand];
 
 const added = run("claude", commandArgs);
 if (!added.ok) {
@@ -109,12 +138,25 @@ if (!added.ok) {
   }, null, 2));
   process.exit(1);
 }
+const verified = run("claude", ["mcp", "get", "adobe"]);
+if (!verified.ok) {
+  console.error(JSON.stringify({
+    ok: false,
+    changed: true,
+    client,
+    scope: claudeScope,
+    stage: "verify",
+    error: verified.stderr || verified.stdout || "Claude Code configuration was written but could not be read back.",
+    hint: "Run claude mcp get adobe and claude mcp list to inspect scope precedence or connection status."
+  }, null, 2));
+  process.exit(1);
+}
 console.log(JSON.stringify({
   ok: true,
   changed: true,
   client,
-  scope: "user",
+  scope: claudeScope,
   command: serverCommand,
   verification: "claude mcp get adobe",
-  output: added.stdout
+  output: verified.stdout || added.stdout
 }, null, 2));

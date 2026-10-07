@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: token-bounded batch execution results after `260ced5e`.
+Last updated commit target: verified current Codex/Claude stdio setup and scope handling after `c7353e30`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -124,6 +124,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Installation / operations
 
+- [x] Codex/Claude setup is read-back verified; Claude setup uses explicit stdio transport, configurable user/local/project scope and scope-aware force removal.
 - [x] MCP registry metadata declares both custom install discovery variables: `ADOBE_MCP_APP_DIRS` and `ADOBE_MCP_APP_PATHS`.
 - [x] Bounded custom/nonstandard Adobe install discovery via standard roots plus `ADOBE_MCP_APP_DIRS` and exact `ADOBE_MCP_APP_PATHS`, with deduplication.
 - [x] `npm run release:check` validates adapter sources, UXP manifests, package/no-CI contract and rejects any unexpected implementation partials while reporting external release gates.

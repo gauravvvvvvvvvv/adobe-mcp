@@ -104,13 +104,22 @@ Equivalent CLI shape:
 codex mcp add adobe -- adobe-mcp
 ```
 
+Setup reads the entry back with `codex mcp get adobe` before reporting success.
+
 ### Claude Code
 
 ```bash
 adobe-mcp-setup --client claude
 ```
 
-This installs at Claude Code user scope. Native Windows uses `cmd /c` around the stdio executable, matching Claude Code's Windows MCP requirement.
+Claude Code defaults to user scope so Adobe MCP is available across projects. Override it when desired:
+
+```bash
+adobe-mcp-setup --client claude --scope local
+adobe-mcp-setup --client claude --scope project
+```
+
+Setup registers an explicit `stdio` transport and reads the configuration back with `claude mcp get adobe`. Native Windows uses `cmd /c` around the stdio executable. Use `--force` only to replace the `adobe` entry in the selected scope.
 
 ## 7. Verify
 

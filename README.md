@@ -121,7 +121,7 @@ adobe-mcp-setup --client codex
 adobe-mcp-setup --client claude
 ```
 
-Use `--force` only when you intentionally want to replace an existing MCP server named `adobe`.
+Claude defaults to user scope; use `--scope local` or `--scope project` when you intentionally want narrower configuration. Use `--force` only when you intentionally want to replace an existing MCP server named `adobe` in the selected scope.
 
 ## Reality check
 
