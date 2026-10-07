@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: compiler regression tests after `4ff6475b`.
+Last updated commit target: typed Photoshop UXP operations after `6106138d`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -77,15 +77,15 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 - [x] UXP auto-reconnect bridge.
 - [x] Compact context inspection.
-- [x] Typed active-layer rename/opacity/visibility.
+- [x] Typed active-layer rename/opacity/visibility plus duplicate/delete/rotate/scale/grouping and layer creation.
 - [~] Broad `batchPlay` escape hatch.
-- [ ] Typed document create/open/save/crop/resize.
-- [ ] Typed layer create/group/reorder/duplicate/transform.
-- [ ] Text creation/style.
-- [ ] Selection/mask primitives.
-- [ ] Adjustment layers and common filters.
-- [ ] Smart-object replace/relink.
-- [ ] Export assets.
+- [x] Typed document create/open/save/crop/resize/duplicate.
+- [~] Typed pixel/text/group create, selected grouping, duplicate/delete/rotate/scale; explicit reordering/translation helpers pending.
+- [~] Typed text create/content/font-size basics; advanced paragraph/character styling pending.
+- [~] Select all/deselect/invert/rectangle/ellipse/subject and mask-from-selection; Photoshop 25+ DOM improves selection operations.
+- [~] Typed destructive brightness/contrast, levels, Gaussian blur and sharpen; adjustment-layer recipes/more filters pending.
+- [~] Smart-object replace-contents via UXP session token; relink/edit-content pending.
+- [~] PNG/JPEG/PSD/PSB save-as to arbitrary local paths.
 - [ ] Compositing/retouch recipe primitives.
 
 ## Illustrator
@@ -116,7 +116,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 - [x] Windows CEP manual install/uninstall.
 - [x] No GitHub Actions / CI.
-- [ ] Photoshop UXP packaged/manual installer.
+- [~] UXP adapter now supports arbitrary fixed local paths via fullAccess; packaged/manual CCX installer still pending.
 - [ ] macOS CEP install/uninstall.
 - [ ] `doctor` verifies ffmpeg/ffprobe, bridge port, adapters and install locations.
 - [ ] One command local setup for Codex/Claude configs where safely detectable.
@@ -132,6 +132,6 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [ ] Media review/validation tests using generated fixture media.
 - [ ] Manual Premiere smoke-test script/checklist.
 - [ ] Manual AE smoke-test script/checklist.
-- [ ] Manual Photoshop smoke-test script/checklist.
+- [~] Static Photoshop adapter regression test added; real-host smoke checklist still pending.
 - [ ] Manual Illustrator smoke-test script/checklist.
 - [ ] Full manual end-to-end acceptance checklist.

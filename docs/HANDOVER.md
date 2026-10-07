@@ -117,9 +117,11 @@ Professional behavior now routes through typed semantic compilers in `src/compil
 Photoshop uses UXP.
 
 - prefer DOM for common operations
-- use `batchPlay` when needed
+- typed UXP coverage now includes document create/open/resize/crop/save, common layer/text operations, selections, common adjustments/filters, smart-object replacement and PNG/JPEG/PSD/PSB save-as
+- the plugin requests `localFileSystem: fullAccess` because autonomous Codex/Claude jobs must address fixed arbitrary local paths without file-picker interaction; installation therefore requires explicit user consent
+- use `batchPlay` when the DOM does not expose an operation
 - keep generic descriptors as escape hatch
-- replace common descriptors with typed semantic handlers over time
+- replace remaining common descriptors with typed semantic handlers over time
 
 ## Token-efficiency rules
 
