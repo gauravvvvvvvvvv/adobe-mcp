@@ -28,6 +28,11 @@ test("Photoshop UXP adapter parses and requests autonomous local path access", a
   assert.match(source, /async function paintRetouch/);
   assert.match(source, /contentAware/);
   assert.match(source, /strokePath/);
+  assert.match(source, /manageVectorPath/);
+  assert.match(source, /doc\.pathItems\.add/);
+  assert.match(source, /makeSelection/);
+  assert.match(source, /fillPath/);
+  assert.match(source, /makeClippingPath/);
   assert.match(source, /ToolType\.CLONESTAMP/);
   assert.match(source, /ToolType\.HEALINGBRUSH/);
   assert.match(source, /selection\\.contract/);\n  assert.match(source, /selection\\.expand/);\n  assert.match(source, /selection\\.feather/);\n  assert.match(source, /selection\\.grow/);\n  assert.match(source, /selection\\.smooth/);\n  assert.match(source, /selection\\.makeWorkPath/);\n  assert.match(source, /selection\\.resizeBoundary/);\n  assert.match(source, /selection\\.rotateBoundary/);\n  assert.match(source, /saveAs\.png/);

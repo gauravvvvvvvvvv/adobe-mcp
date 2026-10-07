@@ -237,6 +237,10 @@ const GUIDES: Record<string, CapabilityGuide> = {
     { operation: "replaceContents", path: "D:/assets/product.png" },
     { required: ["operation"], optional: ["path", "all"], operations: ["convert", "replaceContents", "relink", "editContents", "updateModified"] }
   ),
+  "photoshop.paths.vector": G(
+    { operation: "create", name: "Mask Path", points: [{ x: 100, y: 100 }, { x: 500, y: 100 }, { x: 500, y: 400 }, { x: 100, y: 400 }], closed: true },
+    { required: ["operation"], optional: ["name", "points", "subpaths", "closed", "shapeOperation", "pathName", "pathId", "pathIndex", "newName", "mode", "feather", "antiAlias", "tool", "simulatePressure", "source", "color", "blendMode", "opacity", "preserveTransparency", "wholePath", "flatness"], operations: ["list", "create", "select", "duplicate", "remove", "makeSelection", "stroke", "fill", "clippingPath"] }
+  ),
   "photoshop.export.assets": G(
     { path: "D:/out/poster.png", format: "png" },
     { required: ["path"], optional: ["format", "quality", "asCopy"] }

@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: typed After Effects tracking-data application after `9ebe336a`.
+Last updated commit target: typed Photoshop vector-path surface after `dbec96d7`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -90,6 +90,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Typed Photoshop 25+ selection surface: all/deselect/invert, rectangle/ellipse with modes/feathering, contract/expand/feather/grow/smooth, boundary translate/resize/rotate, work-path creation, subject selection and mask-from-selection.
 - [x] Typed non-destructive adjustment-layer creation plus direct brightness/contrast, levels, hue/saturation, exposure and vibrance parameter editing; exotic version-specific adjustment schemas intentionally use the verified descriptor escape hatch.
 - [x] Smart-object convert, replace contents, relink, edit contents and update-modified operations via typed UXP/batchPlay commands.
+- [x] Typed vector-path surface: list/create Bezier subpaths, select/duplicate/remove, convert to selection, stroke/fill and clipping-path operations.
 - [x] PNG/JPEG/PSD/PSB save-as to arbitrary local paths through UXP fullAccess entries and Document.saveAs.
 - [x] Typed retouch cleanup supports Content-Aware Fill plus path-driven Clone Stamp / Healing Brush strokes, with optional duplicate-before editing; compositing can combine these with masks, transforms, smart objects, adjustments and smart filters.
 

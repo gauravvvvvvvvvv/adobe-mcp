@@ -921,6 +921,153 @@ async function manageSmartObject(params) {
   return runBatchPlay("photoshop.smart-objects.manage", params);
 }
 
+function pathBySpec(doc, params) {
+  const paths = doc.pathItems;
+  if (!paths) throw new Error("Photoshop pathItems API unavailable");
+  if (typeof params.pathName === "string" && params.pathName) return paths.getByName(params.pathName);
+  if (typeof params.name === "string" && params.name) return paths.getByName(params.name);
+  if (params.pathId !== undefined) {
+    const wanted = Number(params.pathId);
+    for (let i = 0; i < paths.length; i++) if (Number(paths[i].id) === wanted) return paths[i];
+    throw new Error("Path ID not found: " + wanted);
+  }
+  if (params.pathIndex !== undefined) {
+    const index = Math.trunc(numeric(params.pathIndex));
+    if (index < 0 || index >= paths.length) throw new Error("Path index out of range");
+    return paths[index];
+  }
+  throw new Error("pathName, name, pathId or pathIndex is required");
+}
+
+function compactPath(path) {
+  return {
+    id: path.id,
+    name: path.name,
+    kind: String(path.kind || ""),
+    subPathCount: path.subPathItems ? path.subPathItems.length : undefined
+  };
+}
+
+function pathPoint(point) {
+  const PathPointInfo = app.PathPointInfo;
+  if (!PathPointInfo) throw new Error("Photoshop PathPointInfo API unavailable");
+  const anchor = Array.isArray(point)
+    ? [numeric(point[0]), numeric(point[1])]
+    : [numeric(point.x), numeric(point.y)];
+  const left = !Array.isArray(point) && Array.isArray(point.leftDirection)
+    ? [numeric(point.leftDirection[0]), numeric(point.leftDirection[1])]
+    : anchor;
+  const right = !Array.isArray(point) && Array.isArray(point.rightDirection)
+    ? [numeric(point.rightDirection[0]), numeric(point.rightDirection[1])]
+    : anchor;
+  const info = new PathPointInfo();
+  info.anchor = anchor;
+  info.leftDirection = left;
+  info.rightDirection = right;
+  info.kind = (!Array.isArray(point) && point.smooth === true)
+    ? constants.PointKind.SMOOTHPOINT
+    : constants.PointKind.CORNERPOINT;
+  return info;
+}
+
+function subPathInfo(spec) {
+  const SubPathInfo = app.SubPathInfo;
+  if (!SubPathInfo) throw new Error("Photoshop SubPathInfo API unavailable");
+  const points = Array.isArray(spec.points) ? spec.points : [];
+  if (points.length < 2) throw new Error("Each subpath requires at least two points");
+  const info = new SubPathInfo();
+  info.closed = spec.closed === true;
+  const key = String(spec.operation || "xor").replace(/[^A-Za-z]/g, "").toUpperCase();
+  const map = { ADD: "SHAPEADD", SUBTRACT: "SHAPESUBTRACT", INTERSECT: "SHAPEINTERSECT", XOR: "SHAPEXOR" };
+  info.operation = constants.ShapeOperation[map[key] || "SHAPEXOR"] || constants.ShapeOperation.SHAPEXOR;
+  info.entireSubPath = points.map(pathPoint);
+  return info;
+}
+
+async function manageVectorPath(params) {
+  return runModal("vector path", async () => {
+    const doc = requireDocument();
+    const operation = String(params.operation || "list");
+
+    if (operation === "list") {
+      const paths = [];
+      for (let i = 0; i < doc.pathItems.length; i++) paths.push(compactPath(doc.pathItems[i]));
+      return { paths, count: paths.length };
+    }
+
+    if (operation === "create") {
+      const specs = Array.isArray(params.subpaths) && params.subpaths.length
+        ? params.subpaths
+        : [{ points: params.points, closed: params.closed, operation: params.shapeOperation }];
+      const path = doc.pathItems.add(
+        typeof params.name === "string" && params.name ? params.name : "Adobe MCP Path",
+        specs.map(subPathInfo)
+      );
+      return compactPath(path);
+    }
+
+    const path = pathBySpec(doc, params);
+    if (operation === "select") {
+      await path.select();
+      return { ...compactPath(path), selected: true };
+    }
+    if (operation === "duplicate") {
+      const duplicate = await path.duplicate(typeof params.newName === "string" ? params.newName : undefined);
+      return compactPath(duplicate);
+    }
+    if (operation === "remove") {
+      const removed = compactPath(path);
+      await path.remove();
+      return { removed };
+    }
+    if (operation === "makeSelection") {
+      const key = String(params.mode || "replace").replace(/[^A-Za-z]/g, "").toUpperCase();
+      const aliases = { ADD: "EXTEND", EXTEND: "EXTEND", SUBTRACT: "DIMINISH", DIMINISH: "DIMINISH", INTERSECT: "INTERSECT", REPLACE: "REPLACE" };
+      const selectionType = constants.SelectionType[aliases[key] || key];
+      if (!selectionType) throw new Error("Unknown path selection mode: " + params.mode);
+      await path.makeSelection(
+        Math.max(0, Math.min(250, numeric(params.feather, 0))),
+        params.antiAlias !== false,
+        selectionType
+      );
+      return { ...compactPath(path), selection: true };
+    }
+    if (operation === "stroke") {
+      const toolKey = String(params.tool || "PENCIL").replace(/[^A-Za-z]/g, "").toUpperCase();
+      const tool = constants.ToolType[toolKey];
+      if (!tool) throw new Error("Unknown Photoshop path stroke tool: " + params.tool);
+      const source = params.source && typeof params.source === "object"
+        ? { x: numeric(params.source.x), y: numeric(params.source.y) }
+        : undefined;
+      await path.strokePath(tool, params.simulatePressure === true, source);
+      return { ...compactPath(path), stroked: true, tool: toolKey };
+    }
+    if (operation === "fill") {
+      const fillColor = Array.isArray(params.color) ? rgbColor(params.color) : undefined;
+      const modeKey = String(params.blendMode || "NORMAL").replace(/[^A-Za-z]/g, "").toUpperCase();
+      const blendMode = constants.ColorBlendMode[modeKey];
+      if (!blendMode) throw new Error("Unknown Photoshop path fill blend mode: " + params.blendMode);
+      await path.fillPath(
+        fillColor,
+        blendMode,
+        Math.max(0, Math.min(100, numeric(params.opacity, 100))),
+        params.preserveTransparency === true,
+        Math.max(0, Math.min(250, numeric(params.feather, 0))),
+        params.wholePath !== false,
+        params.antiAlias !== false
+      );
+      return { ...compactPath(path), filled: true };
+    }
+    if (operation === "clippingPath") {
+      await path.makeClippingPath(
+        params.flatness === undefined ? undefined : Math.max(0.2, Math.min(100, numeric(params.flatness)))
+      );
+      return { ...compactPath(path), clippingPath: true };
+    }
+    throw new Error("Supported path operations: list, create, select, duplicate, remove, makeSelection, stroke, fill, clippingPath");
+  });
+}
+
 async function exportAssets(params) {
   const doc = requireDocument();
   const path = params.path;
@@ -963,6 +1110,7 @@ async function dispatch(op, params = {}) {
   if (op === "photoshop.adjustments.apply") return applyAdjustment(params);
   if (op === "photoshop.filters.apply") return applyFilter(params);
   if (op === "photoshop.smart-objects.manage") return manageSmartObject(params);
+  if (op === "photoshop.paths.vector") return manageVectorPath(params);
   if (op === "photoshop.export.assets") return exportAssets(params);
 
   if (op.startsWith("photoshop.")) return runBatchPlay(op, params);
