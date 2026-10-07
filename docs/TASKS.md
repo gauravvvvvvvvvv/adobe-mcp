@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Photoshop transform/type/adjustment/smart-object block after `f0e2640d`.
+Last updated commit target: native Media Encoder 27+ UXP render-queue adapter after `e6dcf68e`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -104,7 +104,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 ## Other Adobe hosts
 
 - [x] InDesign CEP registration and context path.
-- [ ] Media Encoder adapter.
+- [x] Media Encoder 27+ native UXP adapter: enqueue/render/stitch/image sequence, queue control, job/log/missing-assets/project-GUID lookup and add-output.
 - [ ] Audition adapter or honest capability detector/fallback.
 - [ ] Animate JSFL adapter.
 - [ ] Lightroom Classic Lua adapter.
