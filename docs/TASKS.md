@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: deterministic Premiere lift/extract range editing after `bc098d87`.
+Last updated commit target: Photoshop mixed-range type and typed adjustment-layer parameters after `a2d811f1`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -82,9 +82,9 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [~] Broad `batchPlay` escape hatch.
 - [x] Typed document create/open/save/crop/resize/duplicate.
 - [x] Typed pixel/text/group create, selected grouping, duplicate/delete, transform, front/back ordering, blend mode and clipping-mask controls.
-- [~] Text creation/edit now supports font PostScript name, size, RGB color, tracking, leading, baseline shift, horizontal/vertical scale, faux bold/italic, paragraph justification/hyphenation/indents/spacing and point/paragraph conversion; per-range mixed styling remains pending.
+- [x] Text creation/edit supports layer-wide typography plus mixed non-overlapping text-style ranges (font/size/color/tracking/leading/baseline/scale/bold/italic) while preserving the existing text descriptor.
 - [x] Typed Photoshop 25+ selection surface: all/deselect/invert, rectangle/ellipse with modes/feathering, contract/expand/feather/grow/smooth, boundary translate/resize/rotate, work-path creation, subject selection and mask-from-selection.
-- [~] Typed non-destructive adjustment-layer creation across Photoshop LayerKind adjustments plus destructive brightness/contrast/levels/hue-saturation/invert and blur/sharpen/noise/despeckle; per-adjustment parameter editing remains partly descriptor-backed.
+- [~] Typed non-destructive adjustment-layer creation across Photoshop LayerKind adjustments; direct parameter editing is typed for brightness/contrast, levels, hue/saturation, exposure and vibrance, with descriptor fallback retained for exotic adjustment kinds.
 - [x] Smart-object convert, replace contents, relink, edit contents and update-modified operations via typed UXP/batchPlay commands.
 - [x] PNG/JPEG/PSD/PSB save-as to arbitrary local paths through UXP fullAccess entries and Document.saveAs.
 - [x] Typed retouch cleanup supports Content-Aware Fill plus path-driven Clone Stamp / Healing Brush strokes, with optional duplicate-before editing; compositing can combine these with masks, transforms, smart objects, adjustments and smart filters.

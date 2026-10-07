@@ -302,6 +302,144 @@ async function manageLayer(params) {
   });
 }
 
+function resolveRangeFont(name) {
+  if (typeof name !== "string" || !name.trim()) return undefined;
+  try {
+    for (const font of Array.from(app.fonts ?? [])) {
+      const postScriptName = font.postScriptName || font.name;
+      if (font.postScriptName === name || font.name === name || font.family === name) return postScriptName || name;
+    }
+  } catch {}
+  return name;
+}
+
+function solidColorArray(color) {
+  try {
+    return [Number(color.rgb.red), Number(color.rgb.green), Number(color.rgb.blue)];
+  } catch {
+    return [0, 0, 0];
+  }
+}
+
+function rangeStyleDescriptor(style) {
+  const out = { _obj: "textStyle" };
+  if (style.font) out.fontPostScriptName = style.font;
+  if (style.size !== undefined) out.size = { _unit: "pointsUnit", _value: numeric(style.size) };
+  if (style.tracking !== undefined) out.tracking = numeric(style.tracking);
+  if (style.leading !== undefined) out.leading = { _unit: "pointsUnit", _value: numeric(style.leading) };
+  if (style.baselineShift !== undefined) out.baselineShift = { _unit: "pointsUnit", _value: numeric(style.baselineShift) };
+  if (style.horizontalScale !== undefined) out.horizontalScale = numeric(style.horizontalScale);
+  if (style.verticalScale !== undefined) out.verticalScale = numeric(style.verticalScale);
+  if (style.fauxBold !== undefined) out.syntheticBold = style.fauxBold === true;
+  if (style.fauxItalic !== undefined) out.syntheticItalic = style.fauxItalic === true;
+  if (Array.isArray(style.color)) {
+    out.color = {
+      _obj: "RGBColor",
+      red: numeric(style.color[0]),
+      grain: numeric(style.color[1]),
+      blue: numeric(style.color[2])
+    };
+  }
+  return out;
+}
+
+async function applyTextStyleRanges(layer, ranges) {
+  if (!layer.textItem) throw new Error("Selected layer is not a text layer");
+  if (!Array.isArray(ranges) || !ranges.length) throw new Error("ranges_required");
+  if (ranges.length > 64) throw new Error("ranges_max_64");
+
+  const item = layer.textItem;
+  const contents = String(item.contents || "");
+  const length = contents.length;
+  const cs = item.characterStyle;
+  const defaultFont = (() => {
+    try {
+      if (typeof cs.font === "string") return cs.font;
+      return cs.font?.postScriptName || cs.font?.name;
+    } catch { return undefined; }
+  })();
+  const base = {
+    font: defaultFont,
+    size: Number(cs.size),
+    tracking: Number(cs.tracking),
+    leading: Number(cs.leading),
+    baselineShift: Number(cs.baselineShift),
+    horizontalScale: Number(cs.horizontalScale),
+    verticalScale: Number(cs.verticalScale),
+    fauxBold: cs.fauxBold === true,
+    fauxItalic: cs.fauxItalic === true,
+    color: solidColorArray(cs.color)
+  };
+
+  const requested = ranges.map((range) => ({
+    from: Math.max(0, Math.trunc(numeric(range.from))),
+    to: Math.min(length, Math.trunc(numeric(range.to))),
+    style: {
+      font: resolveRangeFont(range.font || range.fontName) || base.font,
+      size: range.size ?? range.fontSize ?? base.size,
+      tracking: range.tracking ?? base.tracking,
+      leading: range.leading ?? base.leading,
+      baselineShift: range.baselineShift ?? base.baselineShift,
+      horizontalScale: range.horizontalScale ?? base.horizontalScale,
+      verticalScale: range.verticalScale ?? base.verticalScale,
+      fauxBold: range.fauxBold ?? base.fauxBold,
+      fauxItalic: range.fauxItalic ?? base.fauxItalic,
+      color: Array.isArray(range.color)
+        ? range.color
+        : (range.red !== undefined
+          ? [range.red, range.green ?? 0, range.blue ?? 0]
+          : base.color)
+    }
+  })).sort((a, b) => a.from - b.from || a.to - b.to);
+
+  let cursor = 0;
+  const covering = [];
+  for (const range of requested) {
+    if (range.to <= range.from) throw new Error("text_range_to_must_exceed_from");
+    if (range.from < cursor) throw new Error("text_ranges_must_not_overlap");
+    if (range.from > cursor) covering.push({ from: cursor, to: range.from, style: base });
+    covering.push(range);
+    cursor = range.to;
+  }
+  if (cursor < length) covering.push({ from: cursor, to: length, style: base });
+
+  const [read] = await action.batchPlay([{
+    _obj: "get",
+    _target: [
+      { _property: "textKey" },
+      { _ref: "layer", _id: layer.id }
+    ],
+    _options: { dialogOptions: "silent" }
+  }], {});
+  const current = read?.textKey && typeof read.textKey === "object" ? read.textKey : {};
+  const nextText = {
+    ...current,
+    _obj: "textLayer",
+    textKey: contents,
+    textStyleRange: covering.map((range) => ({
+      _obj: "textStyleRange",
+      from: range.from,
+      to: range.to,
+      textStyle: rangeStyleDescriptor(range.style)
+    }))
+  };
+  delete nextText._id;
+
+  const result = await action.batchPlay([{
+    _obj: "set",
+    _target: [{ _ref: "textLayer", _id: layer.id }],
+    to: nextText,
+    _options: { dialogOptions: "silent" }
+  }], { synchronousExecution: false, modalBehavior: "execute" });
+
+  return {
+    ...compactLayer(layer),
+    text: contents,
+    ranges: covering.map((range) => ({ from: range.from, to: range.to, ...range.style })),
+    result
+  };
+}
+
 async function manageText(params) {
   return runModal("text edit", async () => {
     const doc = requireDocument();
@@ -326,8 +464,10 @@ async function manageText(params) {
         layer.textItem.contents = params.text;
       } else if (params.operation === "setSize") {
         layer.textItem.characterStyle.size = numeric(params.fontSize);
+      } else if (params.operation === "styleRanges") {
+        return applyTextStyleRanges(layer, params.ranges);
       } else if (params.operation !== "style") {
-        throw new Error("Supported text operations: create, setText, setSize, style");
+        throw new Error("Supported text operations: create, setText, setSize, style, styleRanges");
       }
     }
 
@@ -576,6 +716,61 @@ async function paintRetouch(params) {
   });
 }
 
+function adjustmentLayerDescriptor(kind, params) {
+  const normalized = String(kind || "").replace(/[^A-Za-z]/g, "").toLowerCase();
+  if (normalized === "brightnesscontrast") {
+    return {
+      _obj: "brightnessContrast",
+      brightness: numeric(params.brightness, 0),
+      contrast: numeric(params.contrast, 0),
+      useLegacy: params.useLegacy === true
+    };
+  }
+  if (normalized === "levels") {
+    return {
+      _obj: "levels",
+      presetKind: { _enum: "presetKindType", _value: "presetKindCustom" },
+      adjustment: [{
+        _obj: "levelsAdjustment",
+        channel: { _ref: "channel", _enum: "channel", _value: "composite" },
+        input: [numeric(params.inputRangeStart, 0), numeric(params.inputRangeEnd, 255)],
+        gamma: numeric(params.inputGamma, 1),
+        output: [numeric(params.outputRangeStart, 0), numeric(params.outputRangeEnd, 255)]
+      }]
+    };
+  }
+  if (normalized === "huesaturation") {
+    return {
+      _obj: "hueSaturation",
+      presetKind: { _enum: "presetKindType", _value: "presetKindCustom" },
+      colorize: params.colorize === true,
+      adjustment: [{
+        _obj: "hueSatAdjustmentV2",
+        hue: numeric(params.hue, 0),
+        saturation: numeric(params.saturation, 0),
+        lightness: numeric(params.lightness, 0)
+      }]
+    };
+  }
+  if (normalized === "exposure") {
+    return {
+      _obj: "exposure",
+      presetKind: { _enum: "presetKindType", _value: "presetKindCustom" },
+      exposure: numeric(params.exposure, 0),
+      offset: numeric(params.offset, 0),
+      gammaCorrection: numeric(params.gammaCorrection, 1)
+    };
+  }
+  if (normalized === "vibrance") {
+    return {
+      _obj: "vibrance",
+      vibrance: numeric(params.vibrance, 0),
+      saturation: numeric(params.saturation, 0)
+    };
+  }
+  throw new Error("Typed adjustment-layer parameter editing supports brightnessContrast, levels, hueSaturation, exposure and vibrance; use descriptors for other adjustment kinds");
+}
+
 async function applyAdjustment(params) {
   return runModal("adjustment", async () => {
     const doc = requireDocument();
@@ -592,10 +787,31 @@ async function applyAdjustment(params) {
         if (!constants.BlendMode[key]) throw new Error("Unknown Photoshop blend mode: " + params.blendMode);
         layer.blendMode = constants.BlendMode[key];
       }
-      return { ...compactLayer(layer), adjustmentKind: String(params.kind) };
+      if (params.parameters && typeof params.parameters === "object") {
+        const to = adjustmentLayerDescriptor(params.kind, params.parameters);
+        await action.batchPlay([{
+          _obj: "set",
+          _target: [{ _ref: "adjustmentLayer", _id: layer.id }],
+          to,
+          _options: { dialogOptions: "silent" }
+        }], { synchronousExecution: false, modalBehavior: "execute" });
+      }
+      return { ...compactLayer(layer), adjustmentKind: String(params.kind), parametersApplied: !!params.parameters };
     }
 
     const layer = selectedLayer();
+    if (operation === "setLayer") {
+      const kind = params.kind;
+      if (typeof kind !== "string" || !kind) throw new Error("kind is required for setLayer");
+      const to = adjustmentLayerDescriptor(kind, params.parameters && typeof params.parameters === "object" ? params.parameters : params);
+      const result = await action.batchPlay([{
+        _obj: "set",
+        _target: [{ _ref: "adjustmentLayer", _id: layer.id }],
+        to,
+        _options: { dialogOptions: "silent" }
+      }], { synchronousExecution: false, modalBehavior: "execute" });
+      return { ...compactLayer(layer), adjustmentKind: kind, result };
+    }
     if (operation === "brightnessContrast") {
       if (!layer.adjustBrightnessContrast) throw new Error("Brightness/contrast is unavailable for this layer type");
       await layer.adjustBrightnessContrast(numeric(params.brightness, 0), numeric(params.contrast, 0));
