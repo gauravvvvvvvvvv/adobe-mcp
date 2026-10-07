@@ -4,6 +4,7 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
 import { LocalBridgeBroker } from "./broker.js";
 import { getCapability, searchCapabilities } from "./catalog.js";
+import { CreativeRuntime } from "./creative-runtime.js";
 import { discoverAdobeInstalls } from "./discovery.js";
 import { ADOBE_APPS, type AdobeApp } from "./types.js";
 import { ADOBE_MCP_VERSION } from "./version.js";
@@ -17,16 +18,30 @@ function json(value: unknown) {
 
 const broker = new LocalBridgeBroker();
 await broker.start();
+const runtime = new CreativeRuntime(broker);
 
 const server = new McpServer(
   { name: "adobe-mcp", version: ADOBE_MCP_VERSION },
   {
     instructions:
-      "Adobe MCP is local-first. Start with adobe_status, then search_capabilities instead of requesting a huge tool list. Use execute for one semantic action and batch_execute for multi-step edits. Prefer compact high-level intent and let the host adapter expand it into native Adobe operations. Inspect current context before destructive or timeline-sensitive work. Reuse inspect_context.contextHash as knownHash on later reads so unchanged project context is not resent. Host adapters reconnect to the local broker, so opening/reopening an Adobe app should not require restarting the MCP server."
+      "Adobe MCP is a local creative-agent runtime. For one-prompt creative work, search capabilities for 'creative', index source/reference assets, create and validate an EditSpec, then create/run a creative job. Use the same job ID through review and repair passes. The agent must inspect rendered/preview artifacts before recording a passing creative.job.review. For normal app work, use execute or batch_execute with compact semantic capabilities. Reuse inspect_context.contextHash as knownHash on later reads. Host adapters reconnect without restarting the MCP server."
   }
 );
 
 const appSchema = z.enum(ADOBE_APPS);
+
+async function invokeCapability(capability: string, params: Record<string, unknown>, timeoutMs: number) {
+  const spec = getCapability(capability);
+  if (!spec) return { ok: false, error: "capability_not_found", capability };
+  if (spec.app === "runtime") {
+    try {
+      return { ok: true, data: await runtime.execute(capability, params, timeoutMs) };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+  return broker.invoke(spec.app, capability, params, timeoutMs);
+}
 
 server.registerTool(
   "adobe_status",
@@ -45,7 +60,7 @@ server.registerTool(
 server.registerTool(
   "search_capabilities",
   {
-    description: "Search the compact Adobe capability catalog. Use this instead of loading hundreds of low-level tools.",
+    description: "Search the compact Adobe/creative capability catalog. Query 'creative' for one-prompt job orchestration.",
     inputSchema: z.object({
       query: z.string().optional().default(""),
       app: appSchema.optional(),
@@ -98,7 +113,7 @@ server.registerTool(
 server.registerTool(
   "execute",
   {
-    description: "Execute one semantic Adobe capability through the currently connected local host adapter.",
+    description: "Execute one semantic Adobe or creative-runtime capability.",
     inputSchema: z.object({
       capability: z.string().min(3),
       params: z.record(z.string(), z.unknown()).optional().default({}),
@@ -106,18 +121,13 @@ server.registerTool(
     }),
     annotations: write
   },
-  async ({ capability, params, timeoutMs }) => {
-    const spec = getCapability(capability);
-    if (!spec) return json({ ok: false, error: "capability_not_found", capability });
-    const result = await broker.invoke(spec.app, capability, params, timeoutMs);
-    return json(result);
-  }
+  async ({ capability, params, timeoutMs }) => json(await invokeCapability(capability, params, timeoutMs))
 );
 
 server.registerTool(
   "batch_execute",
   {
-    description: "Execute an ordered multi-step Adobe edit while keeping MCP overhead small.",
+    description: "Execute an ordered multi-step Adobe/runtime job while keeping MCP overhead small.",
     inputSchema: z.object({
       steps: z.array(z.object({
         capability: z.string().min(3),
@@ -131,14 +141,7 @@ server.registerTool(
   async ({ steps, stopOnError, timeoutMsPerStep }) => {
     const results: unknown[] = [];
     for (const step of steps) {
-      const spec = getCapability(step.capability);
-      if (!spec) {
-        const miss = { ok: false, error: "capability_not_found", capability: step.capability };
-        results.push(miss);
-        if (stopOnError) break;
-        continue;
-      }
-      const result = await broker.invoke(spec.app, step.capability, step.params, timeoutMsPerStep);
+      const result = await invokeCapability(step.capability, step.params, timeoutMsPerStep);
       results.push({ capability: step.capability, ...result });
       if (stopOnError && !result.ok) break;
     }

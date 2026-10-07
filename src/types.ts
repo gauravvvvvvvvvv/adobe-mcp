@@ -14,12 +14,13 @@ export const ADOBE_APPS = [
 ] as const;
 
 export type AdobeApp = (typeof ADOBE_APPS)[number];
+export type CapabilityTarget = AdobeApp | "runtime";
 
 export type CapabilityRisk = "read" | "write" | "destructive";
 
 export interface Capability {
   id: string;
-  app: AdobeApp;
+  app: CapabilityTarget;
   title: string;
   description: string;
   tags: string[];

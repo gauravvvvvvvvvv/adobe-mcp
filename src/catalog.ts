@@ -1,4 +1,4 @@
-import type { AdobeApp, Capability } from "./types.js";
+import type { AdobeApp, Capability, CapabilityTarget } from "./types.js";
 
 const C = (
   app: AdobeApp,
@@ -9,7 +9,23 @@ const C = (
   risk: Capability["risk"] = "write"
 ): Capability => ({ app, id: `${app}.${id}`, title, description, tags, risk });
 
+const R = (
+  id: string,
+  title: string,
+  description: string,
+  tags: string[],
+  risk: Capability["risk"] = "write"
+): Capability => ({ app: "runtime", id, title, description, tags, risk });
+
 export const CAPABILITIES: Capability[] = [
+  R("creative.assets.index", "Index creative assets", "Scan local source/reference assets and return compact media metadata; ffprobe enriches video/audio when installed.", ["creative","assets","media","reference","index"], "read"),
+  R("creative.editspec.validate", "Validate an EditSpec", "Validate the structured creative brief, deliverables, acceptance criteria and semantic operation plan before editing.", ["creative","editspec","plan","validate"], "read"),
+  R("creative.job.create", "Create a creative job", "Persist a validated EditSpec and return a compact job ID for the whole edit/review/repair lifecycle.", ["creative","job","plan"]),
+  R("creative.job.get", "Read a creative job", "Return compact status or the full persisted EditSpec/job state.", ["creative","job","status"], "read"),
+  R("creative.job.update", "Update a creative job", "Replace the EditSpec for a repair/replan pass or attach a compact note.", ["creative","job","repair","replan"]),
+  R("creative.job.run", "Run a creative job", "Execute the EditSpec semantic operations in order across connected Adobe host adapters.", ["creative","job","execute","master-edit"]),
+  R("creative.job.review", "Record a review pass", "Persist the agent's rendered-output review, criterion verdicts and review artifacts; pass completes the job, fail marks it for repair.", ["creative","job","review","qa"]),
+
   C("premiere", "context.inspect", "Inspect active Premiere context", "Project, active sequence, selection, playhead, tracks and media summary.", ["inspect","project","sequence"], "read"),
   C("premiere", "project.manage", "Manage Premiere project", "Create/open/save projects, bins, imports, relinks, proxies and metadata.", ["project","media","bin","proxy"]),
   C("premiere", "timeline.edit", "Edit timeline", "Insert, overwrite, move, ripple, roll, slip, slide, razor, lift, extract, trim and reorder clips.", ["timeline","edit","trim"]),
@@ -63,12 +79,12 @@ export const CAPABILITIES: Capability[] = [
   C("indesign", "document.layout", "Automate InDesign layouts", "Documents, pages, frames, text, styles, links, tables and export.", ["layout","publishing"]),
   C("animate", "timeline.author", "Automate Animate timelines", "Documents, symbols, layers, frames, tweens and JSFL-driven authoring.", ["animation","jsfl"]),
   C("lightroom-classic", "catalog.manage", "Automate Lightroom Classic catalog workflows", "Catalog queries, metadata, develop/export workflows through a local plugin adapter.", ["photo","catalog"]),
-  C("acrobat", "pdf.automate", "Automate Acrobat documents", "Page, form, annotation, JavaScript and document workflows available to Acrobat automation.", ["pdf","acrobat"]),
+  C("acrobat", "pdf.automate", "Automate Acrobat documents", "Page, form, annotation, JavaScript actions and document workflows available to Acrobat automation.", ["pdf","acrobat"]),
   C("bridge", "assets.manage", "Automate Adobe Bridge assets", "Browse, metadata, rename, collections and batch asset operations.", ["assets","metadata"]),
   C("substance-3d", "project.automate", "Automate Substance 3D workflows", "Project/material/export operations exposed by installed Substance host APIs.", ["3d","material"])
 ];
 
-export function searchCapabilities(query = "", app?: AdobeApp, limit = 30): Capability[] {
+export function searchCapabilities(query = "", app?: CapabilityTarget, limit = 30): Capability[] {
   const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
   return CAPABILITIES
     .filter((c) => !app || c.app === app)
