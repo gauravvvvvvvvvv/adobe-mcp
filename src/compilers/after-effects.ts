@@ -110,22 +110,71 @@ function textAnimate(params: Record<string, unknown>): Record<string, unknown> {
   const start = Math.max(0, finiteNumber(params.start, 0));
   const duration = Math.max(0.01, finiteNumber(params.duration, 3));
   const animateIn = Math.max(0, Math.min(duration, finiteNumber(params.animateIn, 0.5)));
+  const animator = params.animator && typeof params.animator === "object" && !Array.isArray(params.animator)
+    ? params.animator as Record<string, unknown>
+    : undefined;
+  const selectorFrames = animator ? objectArray(animator.selectorKeyframes).map((frame) => ({
+    time: Math.max(0, finiteNumber(frame.time)),
+    start: frame.start === undefined ? undefined : finiteNumber(frame.start),
+    end: frame.end === undefined ? undefined : finiteNumber(frame.end),
+    offset: frame.offset === undefined ? undefined : finiteNumber(frame.offset)
+  })) : [];
+
   let body = HELPERS + 'var c=__comp(' + (comp ? js(comp) : "null") + ');app.beginUndoGroup("Adobe MCP: text");var l=c.layers.addText(' + js(text) + ');l.name=' + js(name) + ';l.startTime=' + start + ';l.outPoint=' + (start + duration) + ';';
-  body += 'var tp=l.property("ADBE Text Properties").property("ADBE Text Document");var d=tp.value;d.fontSize=' + fontSize + ';d.fillColor=' + js(color) + ';tp.setValue(d);var tr=l.property("ADBE Transform Group");tr.property("ADBE Position").setValue(' + js(position) + ');var op=tr.property("ADBE Opacity");op.setValueAtTime(' + start + ',0);op.setValueAtTime(' + (start + animateIn) + ',100);var sc=tr.property("ADBE Scale");sc.setValueAtTime(' + start + ',[90,90]);sc.setValueAtTime(' + (start + animateIn) + ',[100,100]);app.endUndoGroup();return JSON.stringify({success:true,index:l.index,name:l.name});';
+  body += 'var textProps=l.property("ADBE Text Properties");var tp=textProps.property("ADBE Text Document");var d=tp.value;d.fontSize=' + fontSize + ';d.fillColor=' + js(color) + ';tp.setValue(d);var tr=l.property("ADBE Transform Group");tr.property("ADBE Position").setValue(' + js(position) + ');var op=tr.property("ADBE Opacity");op.setValueAtTime(' + start + ',0);op.setValueAtTime(' + (start + animateIn) + ',100);var sc=tr.property("ADBE Scale");sc.setValueAtTime(' + start + ',[90,90]);sc.setValueAtTime(' + (start + animateIn) + ',[100,100]);';
+
+  if (animator) {
+    const properties: Array<[string, unknown]> = [
+      ["ADBE Text Opacity", animator.opacity],
+      ["ADBE Text Position 3D", animator.position],
+      ["ADBE Text Scale 3D", animator.scale],
+      ["ADBE Text Rotation", animator.rotation],
+      ["ADBE Text Tracking Amount", animator.tracking]
+    ];
+    body += 'var animators=textProps.property("ADBE Text Animators");if(!animators)throw new Error("Text animators group unavailable");var animatorGroup=animators.addProperty("ADBE Text Animator");animatorGroup.name=' + js(typeof animator.name === "string" ? animator.name : "Adobe MCP Animator") + ';var animatorProps=animatorGroup.property("ADBE Text Animator Properties");';
+    for (const [matchName, value] of properties) {
+      if (value !== undefined) {
+        body += 'var ap=animatorProps.addProperty(' + js(matchName) + ');if(!ap)throw new Error("Could not add text animator property: "+' + js(matchName) + ');ap.setValue(' + js(value) + ');';
+      }
+    }
+    const selectorStart = finiteNumber(animator.start, 0);
+    const selectorEnd = finiteNumber(animator.end, 100);
+    const selectorOffset = finiteNumber(animator.offset, 0);
+    body += 'var selectors=animatorGroup.property("ADBE Text Selectors");if(!selectors)throw new Error("Text selector group unavailable");var selector=selectors.addProperty("ADBE Text Selector");if(!selector)throw new Error("Could not add range selector");var selStart=selector.property("ADBE Text Percent Start");var selEnd=selector.property("ADBE Text Percent End");var selOffset=selector.property("ADBE Text Percent Offset");if(selStart)selStart.setValue(' + js(selectorStart) + ');if(selEnd)selEnd.setValue(' + js(selectorEnd) + ');if(selOffset)selOffset.setValue(' + js(selectorOffset) + ');';
+    if (selectorFrames.length) {
+      body += 'var selectorFrames=' + js(selectorFrames) + ';for(var sfi=0;sfi<selectorFrames.length;sfi++){var sf=selectorFrames[sfi];if(sf.start!==undefined&&selStart)selStart.setValueAtTime(sf.time,sf.start);if(sf.end!==undefined&&selEnd)selEnd.setValueAtTime(sf.time,sf.end);if(sf.offset!==undefined&&selOffset)selOffset.setValueAtTime(sf.time,sf.offset);}';
+    }
+  }
+
+  body += 'app.endUndoGroup();return JSON.stringify({success:true,index:l.index,name:l.name,nativeAnimator:' + (animator ? "true" : "false") + ',selectorKeyframes:' + selectorFrames.length + '});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
 function shapesDraw(params: Record<string, unknown>): Record<string, unknown> {
   const comp = optionalString(params, "composition");
-  const shape = String(params.shape ?? "rectangle");
+  const shape = String(params.shape ?? "rectangle").toLowerCase();
   const name = optionalString(params, "name") ?? "Shape";
   const size = Array.isArray(params.size) ? params.size : [300,300];
   const position = Array.isArray(params.position) ? params.position : [960,540];
   const fill = Array.isArray(params.fill) ? params.fill : [1,1,1];
+  const vertices = Array.isArray(params.vertices) ? params.vertices : [];
+  const zeros = vertices.map(() => [0,0]);
+  const inTangents = Array.isArray(params.inTangents) && params.inTangents.length === vertices.length ? params.inTangents : zeros;
+  const outTangents = Array.isArray(params.outTangents) && params.outTangents.length === vertices.length ? params.outTangents : zeros;
+  if ((shape === "path" || shape === "bezier") && vertices.length < 2) throw new Error("shape_vertices_min_2");
+
   let body = HELPERS + 'var c=__comp(' + (comp ? js(comp) : "null") + ');app.beginUndoGroup("Adobe MCP: shape");var l=c.layers.addShape();l.name=' + js(name) + ';var contents=l.property("ADBE Root Vectors Group");var group=contents.addProperty("ADBE Vector Group");var gc=group.property("ADBE Vectors Group");';
-  if (shape === "ellipse") body += 'var path=gc.addProperty("ADBE Vector Shape - Ellipse");path.property("ADBE Vector Ellipse Size").setValue(' + js(size) + ');';
-  else body += 'var path=gc.addProperty("ADBE Vector Shape - Rect");path.property("ADBE Vector Rect Size").setValue(' + js(size) + ');';
-  body += 'var f=gc.addProperty("ADBE Vector Graphic - Fill");f.property("ADBE Vector Fill Color").setValue(' + js(fill) + ');';
+  if (shape === "ellipse") {
+    body += 'var path=gc.addProperty("ADBE Vector Shape - Ellipse");path.property("ADBE Vector Ellipse Size").setValue(' + js(size) + ');';
+  } else if (shape === "path" || shape === "bezier") {
+    body += 'var path=gc.addProperty("ADBE Vector Shape - Group");var shapeValue=new Shape();shapeValue.vertices=' + js(vertices) + ';shapeValue.inTangents=' + js(inTangents) + ';shapeValue.outTangents=' + js(outTangents) + ';shapeValue.closed=' + (params.closed !== false ? "true" : "false") + ';path.property("ADBE Vector Shape").setValue(shapeValue);';
+  } else {
+    body += 'var path=gc.addProperty("ADBE Vector Shape - Rect");path.property("ADBE Vector Rect Size").setValue(' + js(size) + ');';
+  }
+
+  if (params.fill !== false) {
+    body += 'var f=gc.addProperty("ADBE Vector Graphic - Fill");f.property("ADBE Vector Fill Color").setValue(' + js(fill) + ');';
+  }
   if (Array.isArray(params.stroke)) {
     body += 'var st=gc.addProperty("ADBE Vector Graphic - Stroke");st.property("ADBE Vector Stroke Color").setValue(' + js(params.stroke) + ');st.property("ADBE Vector Stroke Width").setValue(' + Math.max(0, finiteNumber(params.strokeWidth, 4)) + ');';
   }
@@ -140,7 +189,7 @@ function shapesDraw(params: Record<string, unknown>): Record<string, unknown> {
     if (rep.rotation !== undefined) body += 'rt.property("ADBE Vector Repeater Rotation").setValue(' + finiteNumber(rep.rotation) + ');';
     if (Array.isArray(rep.scale)) body += 'rt.property("ADBE Vector Repeater Scale").setValue(' + js(rep.scale) + ');';
   }
-  body += 'l.property("ADBE Transform Group").property("ADBE Position").setValue(' + js(position) + ');app.endUndoGroup();return JSON.stringify({success:true,index:l.index,name:l.name,shape:' + js(shape) + '});';
+  body += 'l.property("ADBE Transform Group").property("ADBE Position").setValue(' + js(position) + ');app.endUndoGroup();return JSON.stringify({success:true,index:l.index,name:l.name,shape:' + js(shape) + ',vertices:' + vertices.length + '});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
@@ -171,8 +220,24 @@ function masksMattes(params: Record<string, unknown>): Record<string, unknown> {
     body += 'var matte=__layer(c,' + js(matte) + ');if(l.setTrackMatte){l.setTrackMatte(matte,TrackMatteType.' + typeName + ');}else{try{matte.moveBefore(l);}catch(_){}l.trackMatteType=TrackMatteType.' + typeName + ';}app.endUndoGroup();return JSON.stringify({success:true,operation:"trackMatte",layer:l.name,matte:matte.name,type:' + js(typeName) + '});';
   } else if (operation === "removeTrackMatte") {
     body += 'if(l.removeTrackMatte)l.removeTrackMatte();else l.trackMatteType=TrackMatteType.NO_TRACK_MATTE;app.endUndoGroup();return JSON.stringify({success:true,operation:"removeTrackMatte",layer:l.name});';
+  } else if (operation === "blendMode") {
+    const requested = String(params.blendMode ?? params.mode ?? "normal").toLowerCase().replace(/[\s_-]+/g, "");
+    const blendModes: Record<string,string> = {
+      normal:"NORMAL", dissolve:"DISSOLVE", darken:"DARKEN", multiply:"MULTIPLY", colorburn:"COLOR_BURN",
+      classiccolorburn:"CLASSIC_COLOR_BURN", linearburn:"LINEAR_BURN", darkercolor:"DARKER_COLOR",
+      add:"ADD", lighten:"LIGHTEN", screen:"SCREEN", colordodge:"COLOR_DODGE", classiccolordodge:"CLASSIC_COLOR_DODGE",
+      lineardodge:"LINEAR_DODGE", lightercolor:"LIGHTER_COLOR", overlay:"OVERLAY", softlight:"SOFT_LIGHT",
+      hardlight:"HARD_LIGHT", linearlight:"LINEAR_LIGHT", vividlight:"VIVID_LIGHT", pinlight:"PIN_LIGHT",
+      hardmix:"HARD_MIX", difference:"DIFFERENCE", classicdifference:"CLASSIC_DIFFERENCE", exclusion:"EXCLUSION",
+      subtract:"SUBTRACT", divide:"DIVIDE", hue:"HUE", saturation:"SATURATION", color:"COLOR", luminosity:"LUMINOSITY",
+      stencilalpha:"STENCIL_ALPHA", stencilluma:"STENCIL_LUMA", silhouettealpha:"SILHOUETTE_ALPHA", silhouetteluma:"SILHOUETTE_LUMA",
+      alphaadd:"ALPHA_ADD", luminescentpremul:"LUMINESCENT_PREMUL"
+    };
+    const blendMode = blendModes[requested];
+    if (!blendMode) throw new Error("unsupported_blend_mode:" + requested);
+    body += 'l.blendingMode=BlendingMode.' + blendMode + ';app.endUndoGroup();return JSON.stringify({success:true,operation:"blendMode",layer:l.name,blendMode:' + js(blendMode) + '});';
   } else {
-    throw new Error("after-effects.masks.mattes operation must be mask, trackMatte or removeTrackMatte");
+    throw new Error("after-effects.masks.mattes operation must be mask, trackMatte, removeTrackMatte or blendMode");
   }
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }

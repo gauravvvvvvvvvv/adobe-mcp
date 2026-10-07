@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Premiere crop and animated time-remap semantics after `545b9bd9`.
+Last updated commit target: AE native text animators, Bezier paths and blend modes after `dfac01a5`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -62,9 +62,9 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [~] Typed composition create/duplicate/precompose.
 - [x] Typed text/solid/null/shape/camera/light/footage import plus duplicate/remove, parent and move-before/move-after ordering.
 - [~] Generic property-path keyframes and temporal easing.
-- [~] Text-layer creation with transform intro animation; native text animator selectors pending.
-- [~] Rectangle/ellipse shape layers now support fills, strokes, trim paths and repeaters; arbitrary Bezier path construction remains pending.
-- [~] Typed masks with shape/feather/opacity/expansion plus set/remove track mattes; explicit layer blend-mode helper remains pending.
+- [x] Text-layer creation with transform intro animation plus native text animator properties and range-selector keyframes.
+- [x] Rectangle/ellipse/arbitrary Bezier shape layers with fills, strokes, trim paths and repeaters.
+- [x] Typed masks with shape/feather/opacity/expansion, set/remove track mattes and explicit layer blend-mode control.
 - [x] Typed effect add/remove, effect parameter writes and animation-preset (.ffx) application.
 - [x] Typed 3D enable/position/orientation/rotation/parent/motion-blur plus camera/light creation and basic options.
 - [~] Render queue item/output path/templates/start controls.

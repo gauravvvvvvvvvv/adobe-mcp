@@ -163,6 +163,50 @@ test("After Effects compilers parse and use undo groups", () => {
   assert.match(animation, /setValueAtTime/);
 });
 
+test("After Effects native text animators Bezier paths and blend modes compile", () => {
+  const text = scriptFor("after-effects.text.animate", {
+    text: "KINETIC",
+    animator: {
+      name: "Reveal",
+      opacity: 0,
+      position: [0, 80, 0],
+      start: 0,
+      end: 100,
+      selectorKeyframes: [
+        { time: 0, offset: -100 },
+        { time: 1, offset: 100 }
+      ]
+    }
+  });
+  parses(text);
+  assert.match(text, /ADBE Text Animator/);
+  assert.match(text, /ADBE Text Selector/);
+  assert.match(text, /ADBE Text Percent Offset/);
+
+  const path = scriptFor("after-effects.shapes.draw", {
+    shape: "path",
+    vertices: [[0, 0], [200, -80], [400, 0]],
+    inTangents: [[0, 0], [-60, 0], [-60, 0]],
+    outTangents: [[60, 0], [60, 0], [0, 0]],
+    closed: false,
+    fill: false,
+    stroke: [1, 1, 1],
+    strokeWidth: 6
+  });
+  parses(path);
+  assert.match(path, /new Shape\(\)/);
+  assert.match(path, /ADBE Vector Shape/);
+  assert.match(path, /shapeValue\.vertices/);
+
+  const blend = scriptFor("after-effects.masks.mattes", {
+    operation: "blendMode",
+    target: { name: "Glow" },
+    blendMode: "screen"
+  });
+  parses(blend);
+  assert.match(blend, /BlendingMode\.SCREEN/);
+});
+
 test("After Effects masks effects 3D footage and advanced shapes compile", () => {
   const footage = scriptFor("after-effects.layers.manage", {
     operation: "footage",
