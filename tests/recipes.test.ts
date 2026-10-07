@@ -75,6 +75,48 @@ test("AE finishing recipes expand entirely to semantic capabilities", () => {
   assert.ok(composite.output.operations.some((operation) => operation.capability === "after-effects.masks.mattes"));
 });
 
+test("social cutdown can create assemble mix QA and export its own target sequence", () => {
+  const recipe = expandRecipe("premiere.social-cutdown", {
+    sequence: "Vertical 9x16",
+    sequencePresetPath: "C:\\presets\\vertical.sqpreset",
+    clips: [{ path: "C:\\media\\a.mp4", sourceIn: 0, sourceOut: 2 }],
+    heroTarget: { trackIndex: 0, clipIndex: 0 },
+    audioTarget: { trackIndex: 0, clipIndex: 0 },
+    captionPath: "C:\\media\\captions.srt",
+    outputPath: "C:\\out\\social.mp4",
+    presetPath: "C:\\presets\\social.epr"
+  });
+  const capabilities = recipe.output.operations.map((operation) => operation.capability);
+  assert.equal(recipe.output.operations[0].capability, "premiere.project.manage");
+  assert.ok(capabilities.includes("premiere.timeline.assemble"));
+  assert.ok(capabilities.includes("premiere.motion.animate"));
+  assert.ok(capabilities.includes("premiere.audio.mix"));
+  assert.ok(capabilities.includes("premiere.captions.manage"));
+  assert.ok(capabilities.includes("premiere.timeline.qa"));
+  assert.ok(capabilities.includes("premiere.export.render"));
+});
+
+test("parallax recipe enables 3D layers and includes an explicit camera move", () => {
+  const recipe = expandRecipe("after-effects.parallax", {
+    composition: "Main",
+    layers: [
+      { target: { name: "FG" }, depth: 200, position: [960, 540] },
+      { target: { name: "BG" }, depth: 700, position: [960, 540] }
+    ],
+    cameraStart: [960, 540, -1200],
+    cameraEnd: [1030, 520, -850],
+    duration: 4
+  });
+  assert.equal(recipe.output.operations[0].capability, "after-effects.three-d.scene");
+  assert.ok(recipe.output.operations.some((operation) =>
+    operation.capability === "after-effects.three-d.scene" &&
+    operation.params.operation === "configure"
+  ));
+  const cameraMotion = recipe.output.operations.find((operation) => operation.id === "camera-motion");
+  assert.equal(cameraMotion?.capability, "after-effects.properties.animate");
+  assert.equal((cameraMotion?.params.keyframes as unknown[]).length, 2);
+});
+
 test("unknown recipe fails explicitly", () => {
   assert.throws(() => expandRecipe("not.real", {}), /creative_recipe_not_found/);
 });

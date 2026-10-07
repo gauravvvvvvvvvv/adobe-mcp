@@ -372,50 +372,113 @@ export function expandRecipe(id: string, input: Record<string, unknown>): Creati
   }
 
   if (id === "premiere.social-cutdown") {
-    const sequence = typeof input.sequence === "string" ? input.sequence : undefined;
+    const sequencePresetPath = typeof input.sequencePresetPath === "string" ? input.sequencePresetPath : undefined;
+    const sequence = typeof input.sequence === "string"
+      ? input.sequence
+      : sequencePresetPath
+        ? "Social Cutdown"
+        : undefined;
     const captionPath = typeof input.captionPath === "string" ? input.captionPath : undefined;
-    const target = input.heroTarget && typeof input.heroTarget === "object" ? input.heroTarget as Record<string, unknown> : undefined;
-    const operations = [];
+    const target = input.heroTarget && typeof input.heroTarget === "object"
+      ? input.heroTarget as Record<string, unknown>
+      : undefined;
+    const clips = Array.isArray(input.clips) ? input.clips : [];
+    const operations: ReturnType<typeof op>[] = [];
+
+    if (sequencePresetPath) {
+      operations.push(op("create-social-sequence", "preflight", "premiere.project.manage", {
+        operation: "createSequence",
+        name: sequence,
+        presetPath: sequencePresetPath
+      }, "Create target social sequence from preset"));
+    }
+
+    if (clips.length) {
+      operations.push(op("assemble-social", "assembly", "premiere.timeline.assemble", {
+        sequence,
+        clips,
+        startAt: num(input.startAt, 0),
+        clear: input.clear === true
+      }, "Assemble social cutdown"));
+    }
+
     if (target) {
       operations.push(op("reframe", "graphics", "premiere.motion.animate", {
         sequence,
         target,
         keyframes: [
           { time: 0, property: "Scale", value: num(input.scale, 115) }
-        ]
+        ],
+        crop: input.crop && typeof input.crop === "object" ? input.crop : undefined,
+        cropKeyframes: Array.isArray(input.cropKeyframes) ? input.cropKeyframes : undefined
       }, "Reframe hero subject"));
     }
+
+    if (input.audioTarget && typeof input.audioTarget === "object") {
+      operations.push(op("social-mix", "audio", "premiere.audio.mix", {
+        sequence,
+        target: input.audioTarget,
+        levelDb: input.levelDb === undefined ? undefined : num(input.levelDb),
+        baseDb: num(input.baseDb, 0),
+        fadeSeconds: num(input.fadeSeconds, 0.2),
+        duckingWindows: Array.isArray(input.duckingWindows) ? input.duckingWindows : []
+      }, "Balance social audio"));
+    }
+
     if (captionPath) {
       operations.push(op("captions", "captions", "premiere.captions.manage", {
         sequence,
         operation: "importSrt",
         path: captionPath,
         start: 0,
-        format: "subtitle"
+        format: typeof input.captionFormat === "string" ? input.captionFormat : "subtitle"
       }, "Import social captions"));
     }
+
     operations.push(op("qa", "review", "premiere.timeline.qa", { sequence }, "Structural QA"));
+
+    if (typeof input.outputPath === "string" && typeof input.presetPath === "string") {
+      operations.push(op("export-social", "export", "premiere.export.render", {
+        sequence,
+        outputPath: input.outputPath,
+        presetPath: input.presetPath,
+        startImmediately: input.startImmediately !== false
+      }, "Export social cutdown"));
+    }
+
     return {
       id,
       title: "Premiere social cutdown",
-      apps: ["premiere"],
-      summary: "Adapt a sequence for social delivery while preserving readability, captions and punch.",
+      apps: ["premiere", "media-encoder"],
+      summary: "Create or adapt a social sequence, assemble selects, reframe/crop, mix audio, add captions, QA and optionally export.",
       inputs: {
-        sequence: "Target social sequence",
+        sequence: "Target sequence name; defaults to Social Cutdown when sequencePresetPath is supplied",
+        sequencePresetPath: "Optional local Premiere sequence preset for target aspect ratio/frame rate",
+        clips: "Optional source selects to assemble into the social sequence",
         heroTarget: "Optional main video clip target to reframe",
         scale: "Optional initial Motion Scale percentage",
-        captionPath: "Optional local SRT path"
+        crop: "Optional static Crop effect values",
+        cropKeyframes: "Optional animated Crop values",
+        audioTarget: "Optional clip target for gain/pan/ducking",
+        duckingWindows: "Optional dialogue-active ducking windows",
+        captionPath: "Optional local SRT path",
+        outputPath: "Optional social master output",
+        presetPath: "Required with outputPath; Adobe Media Encoder .epr"
       },
       output: {
         operations,
         acceptanceCriteria: [
           { id: "social.safe", description: "Important subjects and graphics stay inside the target vertical/social safe area.", kind: "visual", required: true },
+          { id: "social.audio", description: "Speech/music balance is clear and intentional on mobile playback.", kind: "audio", required: !!input.audioTarget },
           { id: "social.captions", description: "Dialogue is readable with captions when captions are requested.", kind: "visual", required: captionPath !== undefined },
-          { id: "social.pacing", description: "The cut reaches the core hook quickly and sustains mobile-viewing pace.", kind: "prompt", required: true }
+          { id: "social.pacing", description: "The cut reaches the core hook quickly and sustains mobile-viewing pace.", kind: "prompt", required: true },
+          { id: "social.render", description: "The exported social master matches the requested delivery preset and plays correctly.", kind: "render", required: typeof input.outputPath === "string" }
         ],
         notes: [
-          "Create/activate the desired aspect-ratio sequence before expansion when a dedicated sequence preset is required.",
-          "Run creative.output.validate with target width/height/fps after export."
+          sequencePresetPath
+            ? "The recipe creates the social sequence from the supplied Premiere preset, so aspect ratio/frame rate are deterministic."
+            : "Without sequencePresetPath, the recipe targets an existing active/named sequence.",
+          "After export, run creative.output.validate with the expected width/height/fps and generate review artifacts."
         ]
       }
     };
@@ -663,39 +726,85 @@ export function expandRecipe(id: string, input: Record<string, unknown>): Creati
   if (id === "after-effects.parallax") {
     const composition = typeof input.composition === "string" ? input.composition : undefined;
     const layers = mustArray(input.layers, "layers");
-    const operations = layers.map((value, index) => {
-      const layer = mustObject(value, "layer");
-      const depth = num(layer.depth, index * 300);
-      return op("depth-" + (index + 1), "vfx", "after-effects.properties.animate", {
+    const center = Array.isArray(input.center) ? input.center : [960, 540];
+    const cameraName = typeof input.cameraName === "string" ? input.cameraName : "Parallax Camera";
+    const cameraStart = Array.isArray(input.cameraStart)
+      ? input.cameraStart
+      : [num(center[0], 960), num(center[1], 540), -1200];
+    const cameraEnd = Array.isArray(input.cameraEnd)
+      ? input.cameraEnd
+      : [num(center[0], 960), num(center[1], 540), -850];
+    const start = Math.max(0, num(input.start, 0));
+    const duration = Math.max(0.1, num(input.duration, 3));
+    const operations: ReturnType<typeof op>[] = [
+      op("camera", "vfx", "after-effects.three-d.scene", {
         composition,
-        target: mustObject(layer.target, "target"),
-        keyframes: [
-          { time: 0, path: ["ADBE Transform Group", "ADBE Position"], value: [0, 0, depth] }
-        ]
-      }, "Place layer in 3D depth");
+        operation: "camera",
+        name: cameraName,
+        center,
+        position: cameraStart,
+        zoom: input.zoom === undefined ? undefined : num(input.zoom)
+      }, "Create parallax camera")
+    ];
+
+    layers.forEach((value, index) => {
+      const layer = mustObject(value, "layer");
+      const target = mustObject(layer.target, "target");
+      const depth = num(layer.depth, index * 300);
+      const xy = Array.isArray(layer.position) ? layer.position : [num(layer.x, 0), num(layer.y, 0)];
+      operations.push(op("depth-" + (index + 1), "vfx", "after-effects.three-d.scene", {
+        composition,
+        operation: "configure",
+        target,
+        enabled: true,
+        position: [num(xy[0], 0), num(xy[1], 0), depth],
+        motionBlur: layer.motionBlur !== false
+      }, "Place layer in 3D depth"));
     });
-    operations.unshift(op("camera", "vfx", "after-effects.layers.manage", {
+
+    operations.push(op("camera-motion", "vfx", "after-effects.properties.animate", {
       composition,
-      operation: "camera",
-      name: typeof input.cameraName === "string" ? input.cameraName : "Parallax Camera",
-      center: Array.isArray(input.center) ? input.center : [960, 540]
-    }, "Create parallax camera"));
+      target: { name: cameraName },
+      keyframes: [
+        {
+          time: start,
+          path: ["ADBE Transform Group", "ADBE Position"],
+          value: cameraStart,
+          easeInfluence: num(input.easeInfluence, 70)
+        },
+        {
+          time: start + duration,
+          path: ["ADBE Transform Group", "ADBE Position"],
+          value: cameraEnd,
+          easeInfluence: num(input.easeInfluence, 70)
+        }
+      ]
+    }, "Animate parallax camera"));
+
     return {
       id,
       title: "After Effects parallax",
       apps: ["after-effects"],
-      summary: "Prepare depth-separated layers and a camera for parallax animation.",
+      summary: "Build depth-separated 3D layers and a fully animated camera move for parallax.",
       inputs: {
-        layers: "Array of {target:{name|index},depth}",
-        composition: "Optional target comp"
+        layers: "Array of {target:{name|index},depth,position?,motionBlur?}",
+        composition: "Optional target comp",
+        cameraStart: "Optional [x,y,z] starting camera position",
+        cameraEnd: "Optional [x,y,z] ending camera position",
+        duration: "Camera move duration in seconds",
+        easeInfluence: "Temporal easing influence for the camera move"
       },
       output: {
         operations,
         acceptanceCriteria: [
           { id: "parallax.depth", description: "Foreground and background layers show clear but believable depth separation.", kind: "visual", required: true },
+          { id: "parallax.motion", description: "The camera move eases cleanly and reinforces depth without distracting jitter.", kind: "visual", required: true },
           { id: "parallax.edges", description: "Camera movement never reveals empty layer edges.", kind: "technical", required: true }
         ],
-        notes: ["Use after-effects.properties.animate on the camera after expansion to define the actual push/pan."]
+        notes: [
+          "Layer targets are explicitly enabled for 3D before depth placement.",
+          "The camera move is part of the recipe; callers only need to tune cameraStart/cameraEnd/duration for the shot."
+        ]
       }
     };
   }

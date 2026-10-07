@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: typed Photoshop retouch operations after `31e6313b`.
+Last updated commit target: self-contained social-cutdown and parallax recipes after `80785820`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -53,7 +53,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] High-level rough-cut recipe.
 - [x] J/L-cut recipe blueprint with independently addressable audio/video trim operations.
 - [x] Beat-cut / music-sync recipe using explicit beat timestamps.
-- [~] Social cutdown recipe covers reframing/captions/QA; target sequence preset/aspect-ratio creation remains host/preset dependent.
+- [x] Social cutdown recipe can create a deterministic target sequence from an explicit Premiere preset, optionally assemble selects, reframe/crop, mix/duck audio, add captions, QA and export.
 - [x] Timeline structural QA for gaps, overlaps and suspiciously short video clips plus compact track structure.
 
 ## After Effects
@@ -70,7 +70,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [~] Render queue item/output path/templates/start controls.
 - [x] Kinetic typography recipe.
 - [x] Logo reveal recipe.
-- [~] Parallax recipe prepares camera/depth layers; explicit camera animation is appended by the agent.
+- [x] Parallax recipe explicitly enables/configures 3D depth layers, creates the camera and includes an eased camera-position move.
 - [x] Lower-third and procedural HUD recipes using typed shape/text primitives.
 - [x] Composite/VFX recipe covering footage import, typed masks, effects and optional 3D placement.
 
