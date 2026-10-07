@@ -89,3 +89,67 @@ test("Illustrator vector compiler parses", () => {
   parses(vector);
   assert.match(vector, /pathItems\.rectangle/);
 });
+
+test("Premiere professional finishing compilers emit QE/MOGRT/caption operations", () => {
+  const speed = scriptFor("premiere.timeline.edit", {
+    operation: "speed",
+    target: { trackType: "video", trackIndex: 0, clipIndex: 0 },
+    speed: 1.5,
+    maintainPitch: true
+  });
+  parses(speed);
+  assert.match(speed, /setSpeed/);
+
+  const effect = scriptFor("premiere.effects.apply", {
+    operation: "effect",
+    target: { trackType: "video", trackIndex: 0, clipIndex: 0 },
+    name: "Gaussian Blur",
+    parameters: { Blurriness: 20 }
+  });
+  parses(effect);
+  assert.match(effect, /getVideoEffectByName/);
+  assert.match(effect, /addVideoEffect/);
+
+  const transition = scriptFor("premiere.effects.apply", {
+    operation: "transition",
+    target: { trackType: "video", trackIndex: 0, clipIndex: 0 },
+    name: "Cross Dissolve",
+    position: "end",
+    duration: 0.5
+  });
+  parses(transition);
+  assert.match(transition, /addTransition/);
+
+  const grade = scriptFor("premiere.color.grade", {
+    target: { trackType: "video", trackIndex: 0, clipIndex: 0 },
+    adjustments: { Exposure: 0.5, Saturation: 105 },
+    lutPath: "C:\\looks\\show.cube"
+  });
+  parses(grade);
+  assert.match(grade, /Lumetri Color/);
+
+  const graphics = scriptFor("premiere.graphics.manage", {
+    operation: "importMogrt",
+    mogrtPath: "C:\\gfx\\lower-third.mogrt",
+    time: 3,
+    videoTrack: 1,
+    texts: ["Gaurav", "Engineer"]
+  });
+  parses(graphics);
+  assert.match(graphics, /importMGT/);
+  assert.match(graphics, /mTextParam/);
+
+  const captions = scriptFor("premiere.captions.manage", {
+    operation: "importSrt",
+    path: "C:\\captions\\final.srt",
+    start: 0,
+    format: "subtitle"
+  });
+  parses(captions);
+  assert.match(captions, /createCaptionTrack/);
+
+  const qa = scriptFor("premiere.timeline.qa", { minClipSeconds: 0.08 });
+  parses(qa);
+  assert.match(qa, /short_clip/);
+  assert.match(qa, /gap/);
+});

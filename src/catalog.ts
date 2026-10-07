@@ -32,6 +32,7 @@ export const CAPABILITIES: Capability[] = [
   C("premiere", "project.manage", "Manage Premiere project", "Create/open/save projects, bins, imports, relinks, proxies and metadata.", ["project","media","bin","proxy"]),
   C("premiere", "timeline.edit", "Edit timeline", "Insert, overwrite, move, ripple, roll, slip, slide, razor, lift, extract, trim and reorder clips.", ["timeline","edit","trim"]),
   C("premiere", "timeline.assemble", "Assemble an edit", "Build a rough cut or polished sequence from media, selects, transcript, beats or edit instructions.", ["timeline","assembly","rough-cut"]),
+  C("premiere", "timeline.qa", "Inspect timeline quality", "Detect timeline gaps, overlaps, suspiciously short clips and return compact track/clip structure for review.", ["timeline","qa","review","gaps"], "read"),
   C("premiere", "effects.apply", "Apply and tune effects", "Apply native/installed effects, transitions and keyframed effect parameters.", ["effects","transitions","keyframes"]),
   C("premiere", "motion.animate", "Animate clip motion", "Animate position, scale, rotation, opacity, crop, masks and time remapping.", ["motion","animation","keyframes"]),
   C("premiere", "color.grade", "Color grade", "Apply Lumetri-style primary/secondary corrections, LUT workflows and shot matching where exposed.", ["color","grade","lumetri"]),

@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: typed Photoshop UXP operations after `6106138d`.
+Last updated commit target: Premiere professional finishing operations after `350e20b2`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -41,19 +41,19 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [~] Typed project operations: save/saveAs, import media, bins, sequence activation/creation.
 - [~] Typed timeline assembly from explicit source ranges, tracks and placement times.
 - [~] Typed insert/overwrite assembly plus move/trim/delete/ripple-delete/set-enabled primitives; razor/lift/extract still pending.
-- [ ] Clip speed/duration and time-remap primitives.
+- [~] QE speed/reverse/maintain-pitch/ripple primitive added; animated time-remapping remains pending.
 - [~] Generic component/property keyframes support Motion/Opacity and other exposed properties; crop-specific helper pending.
-- [ ] Effects and transition application.
-- [ ] Color/LUT controls.
+- [~] Typed QE effect and transition application with named parameter writes.
+- [~] Lumetri Color parameter writes and Input LUT path support.
 - [~] Clip volume level + volume-keyframe primitives; pan/track mix/ducking helpers pending.
-- [ ] Caption/subtitle operations.
-- [ ] Graphics/MOGRT operations.
+- [~] SRT/project-item import into caption track with caption-format mapping; styling/readback remains limited by Premiere scripting API.
+- [~] MOGRT import, named properties and best-effort Source Text payload mutation.
 - [~] Adobe Media Encoder handoff with explicit .epr preset and output path.
 - [ ] High-level rough-cut recipe.
 - [ ] J/L-cut recipe.
 - [ ] Beat-cut / music-sync recipe.
 - [ ] Social cutdown / aspect-ratio adaptation recipe.
-- [ ] Timeline structural QA.
+- [x] Timeline structural QA for gaps, overlaps and suspiciously short video clips plus compact track structure.
 
 ## After Effects
 
