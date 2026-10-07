@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: reference-video intelligence after `1522457c`.
+Last updated commit target: durable job checkpoints/artifacts/resume after `8e826aac`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -31,9 +31,9 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [~] Asset/reference analysis now includes scene cuts, sampled frames, silence map and loudness; perceptual fingerprints and per-source bulk analysis remain pending.
 - [x] Reference-video analysis manifest with shot pacing statistics, proxy/contact sheet/waveform and sampled-frame paths.
 - [ ] Recipe library for common professional edit/motion/graphics workflows.
-- [ ] Checkpoint/rollback metadata for destructive multi-step edits.
-- [ ] Job artifact manifest with project, preview, final and review revisions.
-- [ ] Resume/recovery after host crash during a job.
+- [x] Working-file checkpoints with SHA-256 snapshots and confirm-gated restore with pre-restore backup.
+- [x] Persistent per-job artifact manifest with kind/role/revision/size/hash/metadata; preview and validated deliverables can auto-register.
+- [x] Persistent running/succeeded/failed operation states; interrupted operations become unknown-outcome and are never replayed unless resumeUnknown=true.
 
 ## Premiere Pro
 

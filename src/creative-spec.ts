@@ -44,6 +44,7 @@ export const editSpecSchema = z.object({
   prompt: z.string().min(1),
   assets: z.array(assetRefSchema).optional().default([]),
   references: z.array(assetRefSchema).optional().default([]),
+  workingFiles: z.array(pathSchema).optional().default([]),
   intent: z.object({
     audience: z.string().optional(),
     story: z.string().optional(),

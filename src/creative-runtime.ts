@@ -5,6 +5,13 @@ import { join } from "node:path";
 import { indexAssets } from "./assets.js";
 import { getCapability } from "./catalog.js";
 import { editSpecSchema, validateEditSpec, type EditSpec } from "./creative-spec.js";
+import {
+  inspectArtifact,
+  restoreCheckpointFile,
+  snapshotWorkingFiles,
+  type JobArtifact,
+  type JobCheckpoint
+} from "./job-files.js";
 import { generateReviewPack, validateMediaOutput } from "./media-review.js";
 import { analyzeReference } from "./reference-analysis.js";
 import type { LocalBridgeBroker } from "./broker.js";
@@ -12,15 +19,17 @@ import { invokeAdobeCapability } from "./invoke.js";
 import type { AdobeApp } from "./types.js";
 
 type JobStatus = "planned" | "executing" | "awaiting_review" | "needs_repair" | "completed" | "failed";
+type OperationStatus = "running" | "succeeded" | "failed";
 
 interface OperationResult {
   operationId: string;
   capability: string;
-  ok: boolean;
+  status?: OperationStatus;
+  ok?: boolean;
   error?: string;
   data?: unknown;
   startedAt: string;
-  finishedAt: string;
+  finishedAt?: string;
 }
 
 interface ReviewRecord {
@@ -42,32 +51,59 @@ interface CreativeJob {
   operationResults: OperationResult[];
   reviews: ReviewRecord[];
   notes: string[];
+  artifacts?: JobArtifact[];
+  checkpoints?: JobCheckpoint[];
 }
 
 function now(): string {
   return new Date().toISOString();
 }
 
+function normalizedOperationStatus(result: OperationResult): OperationStatus {
+  if (result.status) return result.status;
+  return result.ok === true ? "succeeded" : "failed";
+}
+
+function hydrateJob(job: CreativeJob): CreativeJob {
+  job.operationResults ??= [];
+  job.reviews ??= [];
+  job.notes ??= [];
+  job.artifacts ??= [];
+  job.checkpoints ??= [];
+  for (const result of job.operationResults) {
+    if (!result.status) result.status = result.ok === true ? "succeeded" : "failed";
+  }
+  return job;
+}
+
 function compactJob(job: CreativeJob) {
+  const hydrated = hydrateJob(job);
   return {
-    id: job.id,
-    revision: job.revision,
-    status: job.status,
-    createdAt: job.createdAt,
-    updatedAt: job.updatedAt,
-    title: job.spec.title,
-    deliverables: job.spec.deliverables,
-    operationCount: job.spec.operations.length,
-    completedOperations: job.operationResults.filter((r) => r.ok).length,
-    failedOperations: job.operationResults.filter((r) => !r.ok).length,
-    reviewPasses: job.reviews.length,
-    lastReview: job.reviews.at(-1),
-    notes: job.notes
+    id: hydrated.id,
+    revision: hydrated.revision,
+    status: hydrated.status,
+    createdAt: hydrated.createdAt,
+    updatedAt: hydrated.updatedAt,
+    title: hydrated.spec.title,
+    deliverables: hydrated.spec.deliverables,
+    operationCount: hydrated.spec.operations.length,
+    completedOperations: hydrated.operationResults.filter((r) => normalizedOperationStatus(r) === "succeeded").length,
+    failedOperations: hydrated.operationResults.filter((r) => normalizedOperationStatus(r) === "failed").length,
+    unknownOperations: hydrated.operationResults
+      .filter((r) => normalizedOperationStatus(r) === "running")
+      .map((r) => ({ operationId: r.operationId, capability: r.capability, startedAt: r.startedAt })),
+    reviewPasses: hydrated.reviews.length,
+    lastReview: hydrated.reviews.at(-1),
+    artifactCount: hydrated.artifacts?.length ?? 0,
+    checkpointCount: hydrated.checkpoints?.length ?? 0,
+    notes: hydrated.notes
   };
 }
 
 export class CreativeRuntime {
   private readonly jobsDir = process.env.ADOBE_MCP_JOBS_DIR ?? join(homedir(), ".adobe-mcp", "jobs");
+  private readonly checkpointsDir =
+    process.env.ADOBE_MCP_CHECKPOINTS_DIR ?? join(homedir(), ".adobe-mcp", "checkpoints");
 
   constructor(private readonly broker: LocalBridgeBroker) {}
 
@@ -79,15 +115,47 @@ export class CreativeRuntime {
   private async save(job: CreativeJob): Promise<void> {
     job.updatedAt = now();
     await mkdir(this.jobsDir, { recursive: true });
-    await writeFile(this.jobPath(job.id), JSON.stringify(job), "utf8");
+    await writeFile(this.jobPath(job.id), JSON.stringify(hydrateJob(job)), "utf8");
   }
 
   private async load(id: string): Promise<CreativeJob> {
     try {
-      return JSON.parse(await readFile(this.jobPath(id), "utf8")) as CreativeJob;
+      return hydrateJob(JSON.parse(await readFile(this.jobPath(id), "utf8")) as CreativeJob);
     } catch {
       throw new Error("creative_job_not_found");
     }
+  }
+
+  private async addArtifact(
+    job: CreativeJob,
+    path: string,
+    options: {
+      kind: string;
+      role: JobArtifact["role"];
+      hash?: boolean;
+      metadata?: Record<string, unknown>;
+    }
+  ) {
+    const artifact = await inspectArtifact(path, {
+      id: randomUUID(),
+      kind: options.kind,
+      role: options.role,
+      revision: job.revision,
+      hash: options.hash,
+      metadata: options.metadata
+    });
+    job.artifacts!.push(artifact);
+    await this.save(job);
+    return artifact;
+  }
+
+  private async checkpoint(job: CreativeJob, paths?: string[]) {
+    const files = paths?.length ? paths : job.spec.workingFiles;
+    if (!files.length) throw new Error("no_working_files_for_checkpoint");
+    const checkpoint = await snapshotWorkingFiles(job.id, job.revision, files, this.checkpointsDir);
+    job.checkpoints!.push(checkpoint);
+    await this.save(job);
+    return checkpoint;
   }
 
   async execute(capability: string, params: Record<string, unknown>, timeoutMs = 120_000): Promise<unknown> {
@@ -119,11 +187,22 @@ export class CreativeRuntime {
       if (typeof params.inputPath !== "string" || typeof params.outputDir !== "string") {
         throw new Error("inputPath_and_outputDir_required");
       }
-      return generateReviewPack(params.inputPath, params.outputDir, {
+      const pack = await generateReviewPack(params.inputPath, params.outputDir, {
         proxyWidth: typeof params.proxyWidth === "number" ? params.proxyWidth : undefined,
         contactFrames: typeof params.contactFrames === "number" ? params.contactFrames : undefined,
         includeWaveform: params.includeWaveform !== false
       });
+      if (typeof params.jobId === "string") {
+        const job = await this.load(params.jobId);
+        for (const artifact of pack.artifacts) {
+          await this.addArtifact(job, artifact.path, {
+            kind: artifact.kind,
+            role: "review",
+            metadata: { source: params.inputPath }
+          });
+        }
+      }
+      return pack;
     }
 
     if (capability === "creative.output.validate") {
@@ -131,7 +210,7 @@ export class CreativeRuntime {
       const expected = params.expected && typeof params.expected === "object"
         ? params.expected as Record<string, unknown>
         : {};
-      return validateMediaOutput(params.path, {
+      const validation = await validateMediaOutput(params.path, {
         width: typeof expected.width === "number" ? expected.width : undefined,
         height: typeof expected.height === "number" ? expected.height : undefined,
         fps: typeof expected.fps === "number" ? expected.fps : undefined,
@@ -141,6 +220,15 @@ export class CreativeRuntime {
         audioRequired: expected.audioRequired === true,
         minSizeBytes: typeof expected.minSizeBytes === "number" ? expected.minSizeBytes : undefined
       });
+      if (validation.ok && typeof params.jobId === "string" && params.register !== false) {
+        const job = await this.load(params.jobId);
+        await this.addArtifact(job, params.path, {
+          kind: typeof params.kind === "string" ? params.kind : "media-output",
+          role: "deliverable",
+          metadata: { validation }
+        });
+      }
+      return validation;
     }
 
     if (capability === "creative.editspec.validate") {
@@ -160,7 +248,9 @@ export class CreativeRuntime {
         spec,
         operationResults: [],
         reviews: [],
-        notes: []
+        notes: [],
+        artifacts: [],
+        checkpoints: []
       };
       await this.save(job);
       return { ok: true, job: compactJob(job) };
@@ -175,7 +265,6 @@ export class CreativeRuntime {
     if (capability === "creative.job.update") {
       const id = String(params.jobId ?? "");
       const job = await this.load(id);
-
       if (params.spec !== undefined) {
         job.spec = editSpecSchema.parse(params.spec);
         job.revision += 1;
@@ -183,9 +272,54 @@ export class CreativeRuntime {
         if (job.status !== "completed") job.status = "planned";
       }
       if (typeof params.note === "string" && params.note.trim()) job.notes.push(params.note.trim());
-
       await this.save(job);
       return { ok: true, job: compactJob(job) };
+    }
+
+    if (capability === "creative.job.artifact") {
+      const job = await this.load(String(params.jobId ?? ""));
+      if (typeof params.path !== "string") throw new Error("path_required");
+      const roleValues: JobArtifact["role"][] = ["working", "preview", "review", "deliverable", "reference", "other"];
+      const role = roleValues.includes(params.role as JobArtifact["role"])
+        ? params.role as JobArtifact["role"]
+        : "other";
+      const artifact = await this.addArtifact(job, params.path, {
+        kind: typeof params.kind === "string" ? params.kind : "file",
+        role,
+        hash: params.hash !== false,
+        metadata: params.metadata && typeof params.metadata === "object"
+          ? params.metadata as Record<string, unknown>
+          : undefined
+      });
+      return { ok: true, artifact, job: compactJob(job) };
+    }
+
+    if (capability === "creative.job.checkpoint") {
+      const job = await this.load(String(params.jobId ?? ""));
+      const paths = Array.isArray(params.paths)
+        ? params.paths.filter((x): x is string => typeof x === "string")
+        : undefined;
+      const checkpoint = await this.checkpoint(job, paths);
+      return { ok: true, checkpoint, job: compactJob(job) };
+    }
+
+    if (capability === "creative.job.restore") {
+      if (params.confirm !== true) throw new Error("restore_requires_confirm_true");
+      const job = await this.load(String(params.jobId ?? ""));
+      const checkpointId = String(params.checkpointId ?? "");
+      const checkpoint = job.checkpoints!.find((item) => item.id === checkpointId);
+      if (!checkpoint) throw new Error("checkpoint_not_found");
+      const requestedPath = typeof params.sourcePath === "string" ? params.sourcePath : undefined;
+      const files = requestedPath
+        ? checkpoint.files.filter((file) => file.sourcePath === requestedPath)
+        : checkpoint.files;
+      if (!files.length) throw new Error("checkpoint_file_not_found");
+      const backupRoot = join(this.checkpointsDir, job.id, "pre-restore");
+      const restored = [];
+      for (const file of files) restored.push(await restoreCheckpointFile(file, backupRoot));
+      job.notes.push("Restored checkpoint " + checkpoint.id + " at " + now());
+      await this.save(job);
+      return { ok: true, checkpointId, restored, job: compactJob(job) };
     }
 
     if (capability === "creative.job.run") {
@@ -193,7 +327,46 @@ export class CreativeRuntime {
       const job = await this.load(id);
       const stopOnError = params.stopOnError !== false;
       const fromOperationId = typeof params.fromOperationId === "string" ? params.fromOperationId : undefined;
+      const resumeUnknown = params.resumeUnknown === true;
       let started = fromOperationId === undefined;
+
+      const unknown = job.operationResults.find((result) => normalizedOperationStatus(result) === "running");
+      if (unknown && !resumeUnknown) {
+        job.status = "failed";
+        job.notes.push(
+          "Operation " + unknown.operationId +
+          " has an unknown outcome because a previous run stopped before receiving a host result. " +
+          "Inspect the host/project and rerun with resumeUnknown=true only when safe."
+        );
+        await this.save(job);
+        return {
+          ok: false,
+          error: "operation_outcome_unknown",
+          unknown: {
+            operationId: unknown.operationId,
+            capability: unknown.capability,
+            startedAt: unknown.startedAt
+          },
+          job: compactJob(job)
+        };
+      }
+
+      if (
+        params.checkpoint !== false &&
+        job.spec.workingFiles.length > 0 &&
+        !job.checkpoints!.some((checkpoint) => checkpoint.revision === job.revision)
+      ) {
+        try {
+          await this.checkpoint(job);
+        } catch (error) {
+          if (params.checkpointRequired !== false) {
+            job.status = "failed";
+            job.notes.push("Automatic checkpoint failed: " + (error instanceof Error ? error.message : String(error)));
+            await this.save(job);
+            return { ok: false, error: "automatic_checkpoint_failed", job: compactJob(job) };
+          }
+        }
+      }
 
       job.status = "executing";
       await this.save(job);
@@ -202,44 +375,43 @@ export class CreativeRuntime {
         if (!started && operation.id === fromOperationId) started = true;
         if (!started) continue;
 
-        const prior = job.operationResults.find((r) => r.operationId === operation.id && r.ok);
+        const prior = job.operationResults.find(
+          (result) => result.operationId === operation.id && normalizedOperationStatus(result) === "succeeded"
+        );
         if (prior && params.rerunSuccessful !== true) continue;
 
-        const definition = getCapability(operation.capability);
-        const startedAt = now();
-
-        if (!definition) {
-          const result: OperationResult = {
-            operationId: operation.id,
-            capability: operation.capability,
-            ok: false,
-            error: "capability_not_found",
-            startedAt,
-            finishedAt: now()
-          };
-          job.operationResults.push(result);
-          if (operation.required && stopOnError) {
+        const staleUnknownIndex = job.operationResults.findIndex(
+          (result) => result.operationId === operation.id && normalizedOperationStatus(result) === "running"
+        );
+        if (staleUnknownIndex >= 0) {
+          if (!resumeUnknown) {
             job.status = "failed";
             await this.save(job);
-            return { ok: false, job: compactJob(job), failed: result };
+            return { ok: false, error: "operation_outcome_unknown", operationId: operation.id, job: compactJob(job) };
           }
-          continue;
+          job.operationResults.splice(staleUnknownIndex, 1);
         }
 
-        if (definition.app === "runtime") {
-          const result: OperationResult = {
-            operationId: operation.id,
-            capability: operation.capability,
-            ok: false,
-            error: "nested_runtime_operation_not_allowed",
-            startedAt,
-            finishedAt: now()
-          };
-          job.operationResults.push(result);
+        const definition = getCapability(operation.capability);
+        const running: OperationResult = {
+          operationId: operation.id,
+          capability: operation.capability,
+          status: "running",
+          startedAt: now()
+        };
+        job.operationResults.push(running);
+        await this.save(job);
+
+        if (!definition || definition.app === "runtime") {
+          running.status = "failed";
+          running.ok = false;
+          running.error = !definition ? "capability_not_found" : "nested_runtime_operation_not_allowed";
+          running.finishedAt = now();
+          await this.save(job);
           if (operation.required && stopOnError) {
             job.status = "failed";
             await this.save(job);
-            return { ok: false, job: compactJob(job), failed: result };
+            return { ok: false, job: compactJob(job), failed: running };
           }
           continue;
         }
@@ -251,22 +423,17 @@ export class CreativeRuntime {
           operation.params,
           timeoutMs
         );
-        const result: OperationResult = {
-          operationId: operation.id,
-          capability: operation.capability,
-          ok: bridgeResult.ok,
-          error: bridgeResult.error,
-          data: bridgeResult.data,
-          startedAt,
-          finishedAt: now()
-        };
-        job.operationResults.push(result);
+        running.status = bridgeResult.ok ? "succeeded" : "failed";
+        running.ok = bridgeResult.ok;
+        running.error = bridgeResult.error;
+        running.data = bridgeResult.data;
+        running.finishedAt = now();
         await this.save(job);
 
         if (!bridgeResult.ok && operation.required && stopOnError) {
           job.status = "failed";
           await this.save(job);
-          return { ok: false, job: compactJob(job), failed: result };
+          return { ok: false, job: compactJob(job), failed: running };
         }
       }
 
@@ -315,7 +482,14 @@ export class CreativeRuntime {
         createdAt: now()
       };
       job.reviews.push(review);
-      job.status = verdict === "pass" ? "completed" : "needs_repair";
+      if (verdict === "pass") {
+        job.status = "completed";
+      } else if (job.reviews.length >= job.spec.review.maxPasses) {
+        job.status = "failed";
+        job.notes.push("Maximum review passes reached without acceptance.");
+      } else {
+        job.status = "needs_repair";
+      }
       await this.save(job);
       return { ok: true, job: compactJob(job), review };
     }

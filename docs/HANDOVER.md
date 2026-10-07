@@ -147,6 +147,16 @@ There are four levels:
 
 A final job must not rely only on level 1.
 
+## Crash and rollback safety
+
+- Operation state is persisted as `running` before contacting an Adobe host.
+- If MCP/Adobe dies before the result is received, that operation has an **unknown outcome**.
+- A later `creative.job.run` refuses to replay it by default. The agent must inspect the host/project and explicitly set `resumeUnknown=true` only when retrying is safe.
+- `workingFiles` are automatically snapshotted per revision before job execution when present.
+- `creative.job.checkpoint` can create additional file checkpoints.
+- `creative.job.restore` requires `confirm=true` and creates a pre-restore backup before overwriting a working file.
+- Preview/review/deliverable files belong in the persistent job artifact manifest.
+
 ## Coding rules
 
 - TypeScript strict mode.
