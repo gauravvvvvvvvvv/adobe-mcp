@@ -31,3 +31,15 @@ Write-Host ""
 Write-Host "Photoshop uses the separate UXP adapter at:"
 Write-Host "  $(Join-Path $RepoRoot 'adapters\photoshop-uxp')"
 Write-Host "Load its manifest through UXP Developer Tool during development. A packaged manual installer will be added later."
+
+$LightroomSource = Join-Path $RepoRoot "adapters\lightroom-classic\AdobeMCP.lrplugin"
+$LightroomRoot = Join-Path $env:APPDATA "Adobe\Lightroom\Modules"
+$LightroomTarget = Join-Path $LightroomRoot "AdobeMCP.lrplugin"
+if (Test-Path -LiteralPath (Join-Path $LightroomSource "Info.lua")) {
+    Write-Host ""
+    Write-Host "Installing Lightroom Classic Adobe MCP plugin..."
+    New-Item -ItemType Directory -Path $LightroomRoot -Force | Out-Null
+    if (Test-Path -LiteralPath $LightroomTarget) { Remove-Item -LiteralPath $LightroomTarget -Recurse -Force }
+    Copy-Item -LiteralPath $LightroomSource -Destination $LightroomTarget -Recurse -Force
+    Write-Host "  $LightroomTarget"
+}

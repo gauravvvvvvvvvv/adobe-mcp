@@ -30,3 +30,15 @@ echo "Restart any currently open Premiere Pro / After Effects / Illustrator / In
 echo "After discovery, the adapter reconnects automatically whenever Adobe MCP is running."
 echo
 echo "Photoshop uses adapters/photoshop-uxp and must be loaded once through Adobe UXP Developer Tool during development."
+
+LIGHTROOM_SOURCE="$REPO_ROOT/adapters/lightroom-classic/AdobeMCP.lrplugin"
+LIGHTROOM_ROOT="$HOME/Library/Application Support/Adobe/Lightroom/Modules"
+LIGHTROOM_TARGET="$LIGHTROOM_ROOT/AdobeMCP.lrplugin"
+if [[ -f "$LIGHTROOM_SOURCE/Info.lua" ]]; then
+  echo
+  echo "Installing Lightroom Classic Adobe MCP plugin..."
+  mkdir -p "$LIGHTROOM_ROOT"
+  rm -rf "$LIGHTROOM_TARGET"
+  cp -R "$LIGHTROOM_SOURCE" "$LIGHTROOM_TARGET"
+  echo "  $LIGHTROOM_TARGET"
+fi
