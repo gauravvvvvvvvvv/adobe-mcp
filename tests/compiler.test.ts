@@ -537,6 +537,63 @@ test("Illustrator document lifecycle Bezier compound and clipping creation compi
   assert.match(clip, /PLACEATBEGINNING/);
 });
 
+test("Illustrator rich typography appearance and brush semantics compile", () => {
+  const areaText = scriptFor("illustrator.text.manage", {
+    operation: "create",
+    mode: "area",
+    text: "Headline and body",
+    x: 40,
+    y: 700,
+    width: 420,
+    height: 180,
+    font: "ArialMT",
+    fontSize: 28,
+    justification: "center",
+    ranges: [
+      { start: 0, length: 8, fontSize: 42, color: [255, 0, 0], tracking: 20 }
+    ]
+  });
+  parses(areaText);
+  assert.match(areaText, /textFrames\.areaText/);
+  assert.match(areaText, /paragraphAttributes\.justification/);
+  assert.match(areaText, /t\.characters\[ci\]/);
+
+  const pathText = scriptFor("illustrator.text.manage", {
+    operation: "create",
+    mode: "path",
+    text: "Around the curve",
+    points: [[0, 0], [100, 80], [240, 0]]
+  });
+  parses(pathText);
+  assert.match(pathText, /textFrames\.pathText/);
+
+  const appearance = scriptFor("illustrator.appearance.style", {
+    target: { name: "Badge" },
+    graphicStyleName: "Neon",
+    blendMode: "screen",
+    stroke: [255,255,255],
+    strokeWidth: 3,
+    strokeCap: "round",
+    strokeJoin: "round",
+    strokeDashes: [12, 6],
+    liveEffectXml: "<LiveEffect name=\"Adobe Offset Path\"><Dict data=\"R ofst 4 \"/></LiveEffect>"
+  });
+  parses(appearance);
+  assert.match(appearance, /graphicStyles\.getByName/);
+  assert.match(appearance, /BlendModes\.SCREEN/);
+  assert.match(appearance, /StrokeCap\.ROUNDENDCAP/);
+  assert.match(appearance, /applyEffect/);
+
+  const brush = scriptFor("illustrator.symbols.patterns", {
+    operation: "applyBrush",
+    target: { name: "Stroke" },
+    brushName: "Charcoal - Feather"
+  });
+  parses(brush);
+  assert.match(brush, /brushes\.getByName/);
+  assert.match(brush, /brush\.applyTo/);
+});
+
 test("Premiere professional finishing compilers emit QE/MOGRT/caption operations", () => {
   const speed = scriptFor("premiere.timeline.edit", {
     operation: "speed",

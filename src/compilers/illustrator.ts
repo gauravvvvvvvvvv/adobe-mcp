@@ -188,9 +188,28 @@ function appearanceStyle(params: Record<string, unknown>): Record<string, unknow
   const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
   const fill = Array.isArray(params.fill) ? params.fill : null;
   const stroke = Array.isArray(params.stroke) ? params.stroke : null;
-  const opacity = params.opacity === undefined ? undefined : Math.max(0,Math.min(100,finiteNumber(params.opacity)));
+  const opacity = params.opacity === undefined ? undefined : Math.max(0, Math.min(100, finiteNumber(params.opacity)));
+  const blendName = typeof params.blendMode === "string"
+    ? params.blendMode.toLowerCase().replace(/[\s_-]+/g, "")
+    : undefined;
+  const blendModes: Record<string,string> = {
+    normal:"NORMAL", multiply:"MULTIPLY", screen:"SCREEN", overlay:"OVERLAY",
+    softlight:"SOFTLIGHT", hardlight:"HARDLIGHT", colordodge:"COLORDODGE",
+    colorburn:"COLORBURN", darken:"DARKEN", lighten:"LIGHTEN",
+    difference:"DIFFERENCE", exclusion:"EXCLUSION", hue:"HUE",
+    saturation:"SATURATION", color:"COLOR", luminosity:"LUMINOSITY"
+  };
+  if (blendName && !blendModes[blendName]) throw new Error("unsupported_blend_mode:" + blendName);
+
   let body = HELPERS + 'var d=__doc();var item=__item(d,' + js(target) + ');';
-  if (fill) body += 'item.filled=true;item.fillColor=__rgb(' + js(fill) + ');';
+
+  if (typeof params.graphicStyleName === "string" && params.graphicStyleName) {
+    body += 'var gs=d.graphicStyles.getByName(' + js(params.graphicStyleName) + ');gs.applyTo(item);';
+  }
+
+  if (params.fill === false) body += 'if(item.filled!==undefined)item.filled=false;';
+  else if (fill) body += 'if(item.filled!==undefined){item.filled=true;item.fillColor=__rgb(' + js(fill) + ');}';
+
   if (params.gradient && typeof params.gradient === "object") {
     const gradient = params.gradient as Record<string, unknown>;
     const stops = Array.isArray(gradient.stops)
@@ -202,27 +221,142 @@ function appearanceStyle(params: Record<string, unknown>): Record<string, unknow
       midPoint: Math.max(13, Math.min(87, finiteNumber(stop.midPoint, 50))),
       color: Array.isArray(stop.color) ? stop.color : [0,0,0]
     }));
-    body += 'var grad=d.gradients.add();grad.name=' + js(typeof gradient.name === "string" ? gradient.name : "Adobe MCP Gradient") + ';grad.type=' + (String(gradient.type ?? "linear").toLowerCase()==="radial" ? "GradientType.RADIAL" : "GradientType.LINEAR") + ';var stops=' + js(normalizedStops) + ';while(grad.gradientStops.length<stops.length)grad.gradientStops.add();for(var gi=0;gi<stops.length;gi++){var gs=grad.gradientStops[gi];gs.rampPoint=stops[gi].rampPoint;gs.midPoint=stops[gi].midPoint;gs.color=__rgb(stops[gi].color);}var gc=new GradientColor();gc.gradient=grad;';
+    body += 'var grad=d.gradients.add();grad.name=' + js(typeof gradient.name === "string" ? gradient.name : "Adobe MCP Gradient") + ';grad.type=' + (String(gradient.type ?? "linear").toLowerCase()==="radial" ? "GradientType.RADIAL" : "GradientType.LINEAR") + ';var stops=' + js(normalizedStops) + ';while(grad.gradientStops.length<stops.length)grad.gradientStops.add();for(var gi=0;gi<stops.length;gi++){var gsx=grad.gradientStops[gi];gsx.rampPoint=stops[gi].rampPoint;gsx.midPoint=stops[gi].midPoint;gsx.color=__rgb(stops[gi].color);}var gc=new GradientColor();gc.gradient=grad;';
     if (gradient.angle !== undefined) body += 'try{gc.angle=' + finiteNumber(gradient.angle) + ';}catch(_){}';
-    body += 'item.filled=true;item.fillColor=gc;';
+    body += 'if(item.filled!==undefined){item.filled=true;item.fillColor=gc;}';
   }
+
   if (typeof params.patternName === "string" && params.patternName) {
-    body += 'var pattern=d.patterns.getByName(' + js(params.patternName) + ');var pc=new PatternColor();pc.pattern=pattern;item.filled=true;item.fillColor=pc;';
+    body += 'var pattern=d.patterns.getByName(' + js(params.patternName) + ');var pc=new PatternColor();pc.pattern=pattern;';
+    if (params.patternRotation !== undefined) body += 'pc.rotation=' + finiteNumber(params.patternRotation) + ';';
+    if (params.patternScale !== undefined) body += 'pc.scaleFactor=[' + finiteNumber(params.patternScale,100) + ',' + finiteNumber(params.patternScale,100) + '];';
+    body += 'if(item.filled!==undefined){item.filled=true;item.fillColor=pc;}';
   }
-  if (stroke) body += 'item.stroked=true;item.strokeColor=__rgb(' + js(stroke) + ');item.strokeWidth=' + Math.max(0,finiteNumber(params.strokeWidth,1)) + ';';
+
+  if (params.stroke === false) body += 'if(item.stroked!==undefined)item.stroked=false;';
+  else if (stroke) body += 'if(item.stroked!==undefined){item.stroked=true;item.strokeColor=__rgb(' + js(stroke) + ');}';
+  if (params.strokeWidth !== undefined) body += 'if(item.strokeWidth!==undefined)item.strokeWidth=' + Math.max(0, finiteNumber(params.strokeWidth)) + ';';
+
+  if (typeof params.strokeCap === "string") {
+    const cap = String(params.strokeCap).toLowerCase();
+    const capMap: Record<string,string> = { butt:"BUTTENDCAP", round:"ROUNDENDCAP", projecting:"PROJECTINGENDCAP", square:"PROJECTINGENDCAP" };
+    if (!capMap[cap]) throw new Error("unsupported_stroke_cap:" + cap);
+    body += 'if(item.strokeCap!==undefined)item.strokeCap=StrokeCap.' + capMap[cap] + ';';
+  }
+  if (typeof params.strokeJoin === "string") {
+    const joinName = String(params.strokeJoin).toLowerCase();
+    const joinMap: Record<string,string> = { miter:"MITERENDJOIN", round:"ROUNDENDJOIN", bevel:"BEVELENDJOIN" };
+    if (!joinMap[joinName]) throw new Error("unsupported_stroke_join:" + joinName);
+    body += 'if(item.strokeJoin!==undefined)item.strokeJoin=StrokeJoin.' + joinMap[joinName] + ';';
+  }
+  if (params.strokeMiterLimit !== undefined) body += 'if(item.strokeMiterLimit!==undefined)item.strokeMiterLimit=' + Math.max(1, finiteNumber(params.strokeMiterLimit)) + ';';
+  if (Array.isArray(params.strokeDashes)) body += 'if(item.strokeDashes!==undefined)item.strokeDashes=' + js(params.strokeDashes.map((x) => Math.max(0, finiteNumber(x)))) + ';';
+  if (params.strokeDashOffset !== undefined) body += 'if(item.strokeDashOffset!==undefined)item.strokeDashOffset=' + finiteNumber(params.strokeDashOffset) + ';';
+
   if (opacity !== undefined) body += 'item.opacity=' + opacity + ';';
-  body += 'return JSON.stringify({success:true,name:item.name,opacity:item.opacity,fillType:item.fillColor?item.fillColor.typename:null});';
+  if (blendName) body += 'item.blendingMode=BlendModes.' + blendModes[blendName] + ';';
+
+  if (typeof params.liveEffectXml === "string" && params.liveEffectXml.trim()) {
+    body += 'if(!item.applyEffect)throw new Error("PageItem.applyEffect unavailable");item.applyEffect(' + js(params.liveEffectXml) + ');';
+  }
+
+  body += 'return JSON.stringify({success:true,name:item.name,typename:item.typename,opacity:item.opacity,blendMode:String(item.blendingMode),fillType:item.fillColor?item.fillColor.typename:null,strokeWidth:item.strokeWidth!==undefined?item.strokeWidth:null});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
 function textManage(params: Record<string, unknown>): Record<string, unknown> {
   const operation = String(params.operation ?? "create");
-  if (operation !== "create") throw new Error("illustrator.text.manage currently supports create");
-  const text = requireString(params, "text");
-  const name = optionalString(params, "name") ?? "Text";
-  const x = finiteNumber(params.x,0), y = finiteNumber(params.y,0), size = Math.max(1,finiteNumber(params.fontSize,72));
-  const color = Array.isArray(params.color) ? params.color : [0,0,0];
-  let body = HELPERS + 'var d=__doc();var t=d.textFrames.add();t.name=' + js(name) + ';t.contents=' + js(text) + ';t.position=[' + x + ',' + y + '];t.textRange.characterAttributes.size=' + size + ';t.textRange.characterAttributes.fillColor=__rgb(' + js(color) + ');return JSON.stringify({success:true,name:t.name,contents:t.contents});';
+  const mode = String(params.mode ?? "point").toLowerCase();
+  const target = params.target && typeof params.target === "object" && !Array.isArray(params.target)
+    ? params.target as Record<string, unknown>
+    : {};
+  const orientation = String(params.orientation ?? "horizontal").toLowerCase() === "vertical"
+    ? "TextOrientation.VERTICAL"
+    : "TextOrientation.HORIZONTAL";
+
+  const style = {
+    font: typeof params.font === "string" ? params.font : undefined,
+    size: params.fontSize === undefined ? undefined : Math.max(1, finiteNumber(params.fontSize)),
+    color: Array.isArray(params.color) ? params.color : undefined,
+    tracking: params.tracking === undefined ? undefined : finiteNumber(params.tracking),
+    leading: params.leading === undefined ? undefined : Math.max(0, finiteNumber(params.leading)),
+    baselineShift: params.baselineShift === undefined ? undefined : finiteNumber(params.baselineShift),
+    horizontalScale: params.horizontalScale === undefined ? undefined : Math.max(1, finiteNumber(params.horizontalScale)),
+    verticalScale: params.verticalScale === undefined ? undefined : Math.max(1, finiteNumber(params.verticalScale)),
+    strokeColor: Array.isArray(params.strokeColor) ? params.strokeColor : undefined,
+    strokeWeight: params.strokeWeight === undefined ? undefined : Math.max(0, finiteNumber(params.strokeWeight))
+  };
+
+  const ranges = Array.isArray(params.ranges)
+    ? params.ranges.filter((value): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value))
+      .map((range) => ({
+        start: Math.max(0, integer(range.start, 0)),
+        length: Math.max(0, integer(range.length, 1)),
+        font: typeof range.font === "string" ? range.font : undefined,
+        size: range.fontSize === undefined ? undefined : Math.max(1, finiteNumber(range.fontSize)),
+        color: Array.isArray(range.color) ? range.color : undefined,
+        tracking: range.tracking === undefined ? undefined : finiteNumber(range.tracking),
+        leading: range.leading === undefined ? undefined : Math.max(0, finiteNumber(range.leading)),
+        baselineShift: range.baselineShift === undefined ? undefined : finiteNumber(range.baselineShift),
+        horizontalScale: range.horizontalScale === undefined ? undefined : Math.max(1, finiteNumber(range.horizontalScale)),
+        verticalScale: range.verticalScale === undefined ? undefined : Math.max(1, finiteNumber(range.verticalScale))
+      }))
+    : [];
+
+  let body = HELPERS +
+    'function __charStyle(range,s){var ca=range.characterAttributes;if(s.font!==undefined)ca.textFont=app.textFonts.getByName(s.font);if(s.size!==undefined)ca.size=s.size;if(s.color!==undefined)ca.fillColor=__rgb(s.color);if(s.tracking!==undefined)ca.tracking=s.tracking;if(s.leading!==undefined){ca.autoLeading=false;ca.leading=s.leading;}if(s.baselineShift!==undefined)ca.baselineShift=s.baselineShift;if(s.horizontalScale!==undefined)ca.horizontalScale=s.horizontalScale;if(s.verticalScale!==undefined)ca.verticalScale=s.verticalScale;if(s.strokeColor!==undefined)ca.strokeColor=__rgb(s.strokeColor);if(s.strokeWeight!==undefined)ca.strokeWeight=s.strokeWeight;}' +
+    'var d=__doc();var t=null;';
+
+  if (operation === "create") {
+    const text = requireString(params, "text");
+    const name = optionalString(params, "name") ?? "Text";
+    if (mode === "area") {
+      if (params.pathTarget && typeof params.pathTarget === "object" && !Array.isArray(params.pathTarget)) {
+        body += 'var textPath=__item(d,' + js(params.pathTarget) + ');if(textPath.typename!=="PathItem")throw new Error("Area text pathTarget must be a PathItem");t=d.textFrames.areaText(textPath,' + orientation + ');';
+      } else {
+        const x = finiteNumber(params.x,0), y = finiteNumber(params.y,500);
+        const width = Math.max(1, finiteNumber(params.width,400)), height = Math.max(1, finiteNumber(params.height,200));
+        body += 'var textPath=d.pathItems.rectangle(' + y + ',' + x + ',' + width + ',' + height + ');t=d.textFrames.areaText(textPath,' + orientation + ');';
+      }
+    } else if (mode === "path") {
+      if (params.pathTarget && typeof params.pathTarget === "object" && !Array.isArray(params.pathTarget)) {
+        body += 'var textPath=__item(d,' + js(params.pathTarget) + ');if(textPath.typename!=="PathItem")throw new Error("Path text pathTarget must be a PathItem");t=d.textFrames.pathText(textPath,undefined,undefined,' + orientation + ');';
+      } else {
+        const points = Array.isArray(params.points) ? params.points : [];
+        if (points.length < 2) throw new Error("path_text_points_required");
+        body += 'var textPath=d.pathItems.add();textPath.setEntirePath(' + js(points) + ');t=d.textFrames.pathText(textPath,undefined,undefined,' + orientation + ');';
+      }
+    } else {
+      body += 't=d.textFrames.add();t.position=' + js([finiteNumber(params.x,0), finiteNumber(params.y,0)]) + ';';
+    }
+    body += 't.name=' + js(name) + ';t.contents=' + js(text) + ';';
+  } else if (operation === "update") {
+    body += 't=__item(d,' + js(target) + ');if(t.typename!=="TextFrame")throw new Error("Target is not a TextFrame");';
+    if (typeof params.text === "string") body += 't.contents=' + js(params.text) + ';';
+  } else {
+    throw new Error("illustrator.text.manage operation must be create or update");
+  }
+
+  body += 'var baseStyle=' + js(style) + ';__charStyle(t.textRange,baseStyle);';
+
+  if (typeof params.justification === "string") {
+    const justification = String(params.justification).toLowerCase().replace(/[\s_-]+/g,"");
+    const map: Record<string,string> = {
+      left:"LEFT", right:"RIGHT", center:"CENTER", fulljustify:"FULLJUSTIFY",
+      fulljustifylastlineleft:"FULLJUSTIFYLASTLINELEFT",
+      fulljustifylastlinecenter:"FULLJUSTIFYLASTLINECENTER",
+      fulljustifylastlineright:"FULLJUSTIFYLASTLINERIGHT"
+    };
+    if (!map[justification]) throw new Error("unsupported_justification:" + justification);
+    body += 't.textRange.paragraphAttributes.justification=Justification.' + map[justification] + ';';
+  }
+
+  if (ranges.length) {
+    body += 'var ranges=' + js(ranges) + ';for(var ri=0;ri<ranges.length;ri++){var rs=ranges[ri],end=Math.min(t.characters.length,rs.start+rs.length);for(var ci=rs.start;ci<end;ci++){__charStyle(t.characters[ci],rs);}}';
+  }
+
+  if (params.rotate !== undefined) body += 't.rotate(' + finiteNumber(params.rotate) + ',true,true,true,true,Transformation.CENTER);';
+  body += 'return JSON.stringify({success:true,operation:' + js(operation) + ',mode:' + js(mode) + ',name:t.name,contents:t.contents,characters:t.characters.length});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
@@ -231,7 +365,9 @@ function symbolsPatterns(params: Record<string, unknown>): Record<string, unknow
   const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
   let body = HELPERS + 'var d=__doc();';
 
-  if (operation === "createSymbol") {
+  if (operation === "list") {
+    body += 'var symbols=[],patterns=[],brushes=[];for(var si=0;si<d.symbols.length;si++)symbols.push(d.symbols[si].name);for(var pi=0;pi<d.patterns.length;pi++)patterns.push(d.patterns[pi].name);for(var bi=0;bi<d.brushes.length;bi++)brushes.push(d.brushes[bi].name);return JSON.stringify({success:true,operation:"list",symbols:symbols,patterns:patterns,brushes:brushes});';
+  } else if (operation === "createSymbol") {
     const name = requireString(params, "name");
     body += 'var item=__item(d,' + js(target) + ');var sym=d.symbols.add(item);sym.name=' + js(name) + ';return JSON.stringify({success:true,operation:"createSymbol",name:sym.name});';
   } else if (operation === "placeSymbol") {
@@ -246,8 +382,17 @@ function symbolsPatterns(params: Record<string, unknown>): Record<string, unknow
     if (params.rotation !== undefined) body += 'pc.rotation=' + finiteNumber(params.rotation) + ';';
     if (params.scaleFactor !== undefined) body += 'pc.scaleFactor=[' + finiteNumber(params.scaleFactor,100) + ',' + finiteNumber(params.scaleFactor,100) + '];';
     body += 'item.filled=true;item.fillColor=pc;return JSON.stringify({success:true,operation:"applyPattern",item:item.name,pattern:pattern.name});';
+  } else if (operation === "applyBrush") {
+    const brushName = requireString(params, "brushName");
+    body += 'var item=__item(d,' + js(target) + ');var brush=d.brushes.getByName(' + js(brushName) + ');brush.applyTo(item);return JSON.stringify({success:true,operation:"applyBrush",item:item.name,brush:brush.name});';
+  } else if (operation === "removeSymbol") {
+    const name = requireString(params, "name");
+    body += 'var sym=d.symbols.getByName(' + js(name) + ');sym.remove();return JSON.stringify({success:true,operation:"removeSymbol",name:' + js(name) + '});';
+  } else if (operation === "removePattern") {
+    const name = requireString(params, "name");
+    body += 'var pattern=d.patterns.getByName(' + js(name) + ');pattern.remove();return JSON.stringify({success:true,operation:"removePattern",name:' + js(name) + '});';
   } else {
-    throw new Error("illustrator.symbols.patterns operation must be createSymbol, placeSymbol or applyPattern");
+    throw new Error("illustrator.symbols.patterns operation must be list, createSymbol, placeSymbol, applyPattern, applyBrush, removeSymbol or removePattern");
   }
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }

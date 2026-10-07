@@ -133,6 +133,10 @@ Acrobat Pro uses a folder-level trusted JavaScript because Acrobat restricts net
 
 Painter uses a Python startup plugin and Qt WebSockets. The plugin targets the current `substance_painter` API and supports project lifecycle, texture sets/stacks, layer creation and properties, resource/material search/application and texture export. Layer mutations use `ScopedModification` to collapse history and texture recomputation.
 
+### Illustrator scripting limitations
+
+The typed Illustrator compiler covers document/artboard lifecycle, Bezier/compound/clipping vector construction, transform/alignment, rich appearance/graphic styles, point/area/path typography, symbols, existing patterns/brushes, image trace and export. Illustrator's scripting object model can apply existing brushes but cannot create brush definitions, and it does not expose a stable documented way to populate arbitrary artwork into a new Pattern object. Keep those limitations explicit instead of relying on locale/version-sensitive menu-command hacks.
+
 ### Media Encoder
 
 Media Encoder 27+ uses a native UXP adapter with render-queue enqueue/render/stitch, queue control, job/log/missing-asset inspection and project GUID lookup. Prefer this adapter for direct queue management; Premiere can still hand sequences to AME through its encoder API.

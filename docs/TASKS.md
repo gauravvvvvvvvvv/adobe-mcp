@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Illustrator document lifecycle and advanced vector construction after `76ae7064`.
+Last updated commit target: Illustrator typography/appearance/brush semantics after `f22ecbb0`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -95,9 +95,9 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Document create/open/save/saveAs/close plus artboard list/add/configure/activate/remove operations.
 - [x] Rectangle/ellipse/polygon plus arbitrary Bezier paths with handles, compound paths and clipping-group construction.
 - [x] Move/rotate/scale/z-order plus mathematical alignment to artboard/selection and horizontal/vertical distribution.
-- [~] Fill/stroke/opacity, linear/radial gradients and existing-pattern fills; advanced appearance stacks/live effects remain pending.
-- [~] Point-text creation/style basics.
-- [~] Create/place symbols and apply existing document patterns; programmatic pattern-tile authoring and brush creation remain pending.
+- [x] Fill/stroke/opacity, cap/join/dashes, blend modes, linear/radial gradients, existing-pattern fills, graphic-style application and explicit PageItem live-effect XML.
+- [x] Point/area/path text create/update with font/size/color/tracking/leading/scales/baseline/stroke, paragraph justification and per-character range styling.
+- [x] List/create/place/remove symbols, apply/remove existing patterns and apply existing brushes. Illustrator scripting exposes Brush.applyTo but does not expose brush creation or a stable API to populate pattern-tile artwork, so those are explicit host-model limits.
 - [x] Local placed-image trace with preset/options, redraw and optional expansion.
 - [x] SVG/PNG/JPEG export plus PDF save with editability/preset controls.
 - [x] Logo/vector recipe builds deterministic primitives plus optional wordmark.
