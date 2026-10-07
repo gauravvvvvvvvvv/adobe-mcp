@@ -9,6 +9,16 @@ test("Photoshop UXP adapter parses and requests autonomous local path access", a
   assert.match(source, /createTextLayer/);
   assert.match(source, /resizeImage/);
   assert.match(source, /placedLayerReplaceContents/);
+  assert.match(source, /placedLayerRelinkToFile/);
+  assert.match(source, /placedLayerEditContents/);
+  assert.match(source, /newPlacedLayer/);
+  assert.match(source, /layer\.translate/);
+  assert.match(source, /bringToFront/);
+  assert.match(source, /sendToBack/);
+  assert.match(source, /createLayer\(kind/);
+  assert.match(source, /characterStyle/);
+  assert.match(source, /paragraphStyle/);
+  assert.match(source, /applyAddNoise/);
   assert.match(source, /saveAs\.png/);
   assert.match(source, /executeAsModal/);
 

@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Illustrator alignment/gradient/symbol/trace/PDF block after `cfb9e639`.
+Last updated commit target: Photoshop transform/type/adjustment/smart-object block after `f0e2640d`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -77,16 +77,16 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 - [x] UXP auto-reconnect bridge.
 - [x] Compact context inspection.
-- [x] Typed active-layer rename/opacity/visibility plus duplicate/delete/rotate/scale/grouping and layer creation.
+- [x] Typed active-layer rename/opacity/visibility, duplicate/delete, rotate/scale/translate/skew/flip, front/back ordering, blend mode, clipping mask, grouping and layer creation.
 - [~] Broad `batchPlay` escape hatch.
 - [x] Typed document create/open/save/crop/resize/duplicate.
-- [~] Typed pixel/text/group create, selected grouping, duplicate/delete/rotate/scale; explicit reordering/translation helpers pending.
-- [~] Typed text create/content/font-size basics; advanced paragraph/character styling pending.
+- [x] Typed pixel/text/group create, selected grouping, duplicate/delete, transform, front/back ordering, blend mode and clipping-mask controls.
+- [~] Text creation/edit now supports font PostScript name, size, RGB color, tracking, leading, baseline shift, horizontal/vertical scale, faux bold/italic, paragraph justification/hyphenation/indents/spacing and point/paragraph conversion; per-range mixed styling remains pending.
 - [~] Select all/deselect/invert/rectangle/ellipse/subject and mask-from-selection; Photoshop 25+ DOM improves selection operations.
-- [~] Typed destructive brightness/contrast, levels, Gaussian blur and sharpen; adjustment-layer recipes/more filters pending.
-- [~] Smart-object replace-contents via UXP session token; relink/edit-content pending.
+- [~] Typed non-destructive adjustment-layer creation across Photoshop LayerKind adjustments plus destructive brightness/contrast/levels/hue-saturation/invert and blur/sharpen/noise/despeckle; per-adjustment parameter editing remains partly descriptor-backed.
+- [x] Smart-object convert, replace contents, relink, edit contents and update-modified operations via typed UXP/batchPlay commands.
 - [~] PNG/JPEG/PSD/PSB save-as to arbitrary local paths.
-- [~] Compositing recipe covers subject selection/mask/export; advanced retouch recipes remain pending.
+- [~] Compositing recipe can now combine subject selection/mask, transforms, clipping/blend controls, smart objects, adjustment layers and smart filters; advanced brush/heal/clone retouch recipes remain pending.
 
 ## Illustrator
 

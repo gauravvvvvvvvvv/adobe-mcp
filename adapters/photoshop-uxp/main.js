@@ -83,6 +83,43 @@ function selectedLayer() {
   return layers[0];
 }
 
+function rgbColor(value) {
+  if (!Array.isArray(value) || value.length < 3) throw new Error("RGB color must be [r,g,b]");
+  const SolidColor = app.SolidColor;
+  const color = new SolidColor();
+  color.rgb.red = Math.max(0, Math.min(255, numeric(value[0])));
+  color.rgb.green = Math.max(0, Math.min(255, numeric(value[1])));
+  color.rgb.blue = Math.max(0, Math.min(255, numeric(value[2])));
+  return color;
+}
+
+function adjustmentKind(name) {
+  const key = String(name || "").replace(/[^A-Za-z]/g, "").toUpperCase();
+  const map = {
+    BRIGHTNESSCONTRAST: "BRIGHTNESSCONTRAST",
+    LEVELS: "LEVELS",
+    CURVES: "CURVES",
+    EXPOSURE: "EXPOSURE",
+    VIBRANCE: "VIBRANCE",
+    HUESATURATION: "HUESATURATION",
+    COLORBALANCE: "COLORBALANCE",
+    BLACKANDWHITE: "BLACKANDWHITE",
+    PHOTOFILTER: "PHOTOFILTER",
+    CHANNELMIXER: "CHANNELMIXER",
+    COLORLOOKUP: "COLORLOOKUP",
+    GRADIENTMAP: "GRADIENTMAP",
+    SELECTIVECOLOR: "SELECTIVECOLOR",
+    POSTERIZE: "POSTERIZE",
+    THRESHOLD: "THRESHOLD",
+    INVERSION: "INVERSION",
+    CLARITY: "CLARITY",
+    GRAIN: "GRAIN"
+  };
+  const constantName = map[key];
+  if (!constantName || !constants.LayerKind[constantName]) throw new Error("Unsupported adjustment kind: " + name);
+  return constants.LayerKind[constantName];
+}
+
 function normalizeFileUrl(path) {
   if (typeof path !== "string" || !path.trim()) throw new Error("path is required");
   const normalized = path.replace(/\\/g, "/");
@@ -235,12 +272,30 @@ async function manageLayer(params) {
       const x = numeric(params.xPercent, 100);
       const y = numeric(params.yPercent, x);
       await layer.scale(x, y);
+    } else if (operation === "translate") {
+      await layer.translate(numeric(params.x, 0), numeric(params.y, 0));
+    } else if (operation === "skew") {
+      await layer.skew(numeric(params.horizontal, 0), numeric(params.vertical, 0));
+    } else if (operation === "flip") {
+      const axis = String(params.axis || "horizontal").toLowerCase();
+      const value = axis === "vertical" ? constants.FlipAxis.VERTICAL : axis === "both" ? constants.FlipAxis.BOTH : constants.FlipAxis.HORIZONTAL;
+      await layer.flip(value);
+    } else if (operation === "front") {
+      layer.bringToFront();
+    } else if (operation === "back") {
+      layer.sendToBack();
+    } else if (operation === "blendMode") {
+      const mode = String(params.mode || "NORMAL").replace(/[^A-Za-z]/g, "").toUpperCase();
+      if (!constants.BlendMode[mode]) throw new Error("Unknown Photoshop blend mode: " + params.mode);
+      layer.blendMode = constants.BlendMode[mode];
+    } else if (operation === "clippingMask") {
+      layer.isClippingMask = params.enabled !== false;
     } else if (operation === "groupSelected") {
       const group = await doc.groupLayers(doc.activeLayers);
       if (typeof params.name === "string") group.name = params.name;
       return compactLayer(group);
     } else {
-      throw new Error("Supported layer operations: create, rename, opacity, visibility, duplicate, delete, rotate, scale, groupSelected");
+      throw new Error("Supported layer operations: create, rename, opacity, visibility, duplicate, delete, rotate, scale, translate, skew, flip, front, back, blendMode, clippingMask, groupSelected");
     }
 
     return compactLayer(layer);
@@ -250,8 +305,10 @@ async function manageLayer(params) {
 async function manageText(params) {
   return runModal("text edit", async () => {
     const doc = requireDocument();
+    let layer;
+
     if (params.operation === "create" || params.operation === undefined) {
-      const layer = await doc.createTextLayer({
+      layer = await doc.createTextLayer({
         name: typeof params.name === "string" ? params.name : "Text",
         contents: typeof params.text === "string" ? params.text : "",
         fontName: typeof params.fontName === "string" ? params.fontName : undefined,
@@ -261,20 +318,67 @@ async function manageText(params) {
           : undefined,
         opacity: numeric(params.opacity, 100)
       });
-      return compactLayer(layer);
+    } else {
+      layer = selectedLayer();
+      if (!layer.textItem) throw new Error("Selected layer is not a text layer");
+      if (params.operation === "setText") {
+        if (typeof params.text !== "string") throw new Error("text is required");
+        layer.textItem.contents = params.text;
+      } else if (params.operation === "setSize") {
+        layer.textItem.characterStyle.size = numeric(params.fontSize);
+      } else if (params.operation !== "style") {
+        throw new Error("Supported text operations: create, setText, setSize, style");
+      }
     }
 
-    const layer = selectedLayer();
-    if (!layer.textItem) throw new Error("Selected layer is not a text layer");
-    if (params.operation === "setText") {
-      if (typeof params.text !== "string") throw new Error("text is required");
-      layer.textItem.contents = params.text;
-    } else if (params.operation === "setSize") {
-      layer.textItem.characterStyle.size = numeric(params.fontSize);
-    } else {
-      throw new Error("Supported text operations: create, setText, setSize");
+    const item = layer.textItem;
+    if (!item) return compactLayer(layer);
+    const cs = item.characterStyle;
+    const ps = item.paragraphStyle;
+
+    if (typeof params.font === "string") cs.font = params.font;
+    if (params.fontSize !== undefined) cs.size = numeric(params.fontSize);
+    if (params.tracking !== undefined) cs.tracking = numeric(params.tracking);
+    if (params.leading !== undefined) { cs.useAutoLeading = false; cs.leading = numeric(params.leading); }
+    if (params.autoLeading === true) cs.useAutoLeading = true;
+    if (params.baselineShift !== undefined) cs.baselineShift = numeric(params.baselineShift);
+    if (params.horizontalScale !== undefined) cs.horizontalScale = numeric(params.horizontalScale);
+    if (params.verticalScale !== undefined) cs.verticalScale = numeric(params.verticalScale);
+    if (params.fauxBold !== undefined) cs.fauxBold = params.fauxBold === true;
+    if (params.fauxItalic !== undefined) cs.fauxItalic = params.fauxItalic === true;
+    if (Array.isArray(params.color)) cs.color = rgbColor(params.color);
+
+    if (typeof params.justification === "string") {
+      const key = params.justification.replace(/[^A-Za-z]/g, "").toUpperCase();
+      if (!constants.Justification[key]) throw new Error("Unknown justification: " + params.justification);
+      ps.justification = constants.Justification[key];
     }
-    return compactLayer(layer);
+    if (params.hyphenation !== undefined) ps.hyphenation = params.hyphenation === true;
+    if (params.firstLineIndent !== undefined) ps.firstLineIndent = numeric(params.firstLineIndent);
+    if (params.leftIndent !== undefined) ps.leftIndent = numeric(params.leftIndent);
+    if (params.rightIndent !== undefined) ps.rightIndent = numeric(params.rightIndent);
+    if (params.spaceBefore !== undefined) ps.spaceBefore = numeric(params.spaceBefore);
+    if (params.spaceAfter !== undefined) ps.spaceAfter = numeric(params.spaceAfter);
+
+    if (params.paragraph === true && item.isPointText && item.convertToParagraphText) {
+      await item.convertToParagraphText();
+    }
+    if (params.point === true && item.isParagraphText && item.convertToPointText) {
+      await item.convertToPointText();
+    }
+
+    return {
+      ...compactLayer(layer),
+      text: item.contents,
+      characterStyle: {
+        size: cs.size,
+        font: cs.font,
+        tracking: cs.tracking,
+        leading: cs.leading,
+        horizontalScale: cs.horizontalScale,
+        verticalScale: cs.verticalScale
+      }
+    };
   });
 }
 
@@ -324,8 +428,24 @@ async function manageSelection(params) {
 
 async function applyAdjustment(params) {
   return runModal("adjustment", async () => {
-    const layer = selectedLayer();
+    const doc = requireDocument();
     const operation = params.operation;
+
+    if (operation === "createLayer") {
+      const kind = adjustmentKind(params.kind);
+      const layer = await doc.createLayer(kind, {
+        name: typeof params.name === "string" ? params.name : String(params.kind || "Adjustment"),
+        opacity: numeric(params.opacity, 100)
+      });
+      if (typeof params.blendMode === "string") {
+        const key = params.blendMode.replace(/[^A-Za-z]/g, "").toUpperCase();
+        if (!constants.BlendMode[key]) throw new Error("Unknown Photoshop blend mode: " + params.blendMode);
+        layer.blendMode = constants.BlendMode[key];
+      }
+      return { ...compactLayer(layer), adjustmentKind: String(params.kind) };
+    }
+
+    const layer = selectedLayer();
     if (operation === "brightnessContrast") {
       if (!layer.adjustBrightnessContrast) throw new Error("Brightness/contrast is unavailable for this layer type");
       await layer.adjustBrightnessContrast(numeric(params.brightness, 0), numeric(params.contrast, 0));
@@ -338,6 +458,14 @@ async function applyAdjustment(params) {
         numeric(params.outputRangeStart, 0),
         numeric(params.outputRangeEnd, 255)
       );
+    } else if (operation === "hueSaturation" && layer.adjustHueSaturation) {
+      await layer.adjustHueSaturation(
+        numeric(params.hue, 0),
+        numeric(params.saturation, 0),
+        numeric(params.lightness, 0)
+      );
+    } else if (operation === "invert" && layer.invert) {
+      await layer.invert();
     } else {
       if (!Array.isArray(params.descriptors)) throw new Error("Unsupported typed adjustment; provide descriptors for batchPlay fallback");
       return action.batchPlay(params.descriptors, {});
@@ -348,37 +476,83 @@ async function applyAdjustment(params) {
 
 async function applyFilter(params) {
   return runModal("filter", async () => {
-    const layer = selectedLayer();
+    let layer = selectedLayer();
     const operation = params.operation;
-    if (operation === "gaussianBlur") {
+    const smart = params.smart === true || String(operation || "").startsWith("smart");
+
+    if (smart && String(layer.kind) !== String(constants.LayerKind.SMARTOBJECT)) {
+      await action.batchPlay([{ _obj: "newPlacedLayer", _options: { dialogOptions: "silent" } }], {});
+      layer = selectedLayer();
+    }
+
+    const normalized = String(operation || "").replace(/^smart/i, "");
+    const key = normalized.charAt(0).toLowerCase() + normalized.slice(1);
+    if (key === "gaussianBlur") {
       if (!layer.applyGaussianBlur) throw new Error("Gaussian blur is unavailable for this layer type");
       await layer.applyGaussianBlur(numeric(params.radius, 4));
-    } else if (operation === "sharpen") {
+    } else if (key === "sharpen") {
       if (!layer.applySharpen) throw new Error("Sharpen is unavailable for this layer type");
       await layer.applySharpen();
+    } else if (key === "addNoise") {
+      if (!layer.applyAddNoise) throw new Error("Add Noise is unavailable for this layer type");
+      const distribution = String(params.distribution || "gaussian").toUpperCase();
+      const dist = constants.NoiseDistribution[distribution] || constants.NoiseDistribution.GAUSSIAN;
+      await layer.applyAddNoise(numeric(params.amount, 2), dist, params.monochromatic === true);
+    } else if (key === "blur") {
+      if (!layer.applyBlur) throw new Error("Blur is unavailable for this layer type");
+      await layer.applyBlur();
+    } else if (key === "despeckle") {
+      if (!layer.applyDespeckle) throw new Error("Despeckle is unavailable for this layer type");
+      await layer.applyDespeckle();
     } else {
       if (!Array.isArray(params.descriptors)) throw new Error("Unsupported typed filter; provide descriptors for batchPlay fallback");
       return action.batchPlay(params.descriptors, {});
     }
-    return compactLayer(layer);
+    return { ...compactLayer(layer), smartFilter: smart };
   });
 }
 
 async function manageSmartObject(params) {
-  if (params.operation !== "replaceContents") {
-    return runBatchPlay("photoshop.smart-objects.manage", params);
+  const operation = String(params.operation || "replaceContents");
+
+  if (operation === "convert") {
+    return runModal("convert smart object", async () => {
+      await action.batchPlay([{ _obj: "newPlacedLayer", _options: { dialogOptions: "silent" } }], {});
+      return { converted: true, layer: compactLayer(selectedLayer()) };
+    });
   }
-  const entry = await existingEntry(params.path);
-  const token = fs.createSessionToken(entry);
-  return runModal("replace smart object", async () => {
-    const result = await action.batchPlay([{
-      _obj: "placedLayerReplaceContents",
-      null: { _path: token, _kind: "local" },
-      pageNumber: 1,
-      _options: { dialogOptions: "silent" }
-    }], {});
-    return { replaced: true, path: entry.nativePath, result };
-  });
+
+  if (operation === "editContents") {
+    return runModal("edit smart object contents", async () => {
+      await action.batchPlay([{ _obj: "placedLayerEditContents", _options: { dialogOptions: "silent" } }], {});
+      const doc = requireDocument();
+      return { opened: true, document: { id: doc.id, title: doc.title, path: doc.path || null } };
+    });
+  }
+
+  if (operation === "updateModified") {
+    return runModal("update smart object", async () => {
+      const command = params.all === true ? "placedLayerUpdateAllModified" : "placedLayerUpdateModified";
+      const result = await action.batchPlay([{ _obj: command, _options: { dialogOptions: "silent" } }], {});
+      return { updated: true, all: params.all === true, result };
+    });
+  }
+
+  if (operation === "replaceContents" || operation === "relink") {
+    const entry = await existingEntry(params.path);
+    const token = fs.createSessionToken(entry);
+    return runModal(operation === "relink" ? "relink smart object" : "replace smart object", async () => {
+      const result = await action.batchPlay([{
+        _obj: operation === "relink" ? "placedLayerRelinkToFile" : "placedLayerReplaceContents",
+        null: { _path: token, _kind: "local" },
+        pageNumber: 1,
+        _options: { dialogOptions: "silent" }
+      }], {});
+      return { operation, path: entry.nativePath, result };
+    });
+  }
+
+  return runBatchPlay("photoshop.smart-objects.manage", params);
 }
 
 async function exportAssets(params) {
@@ -467,7 +641,7 @@ function connect() {
       type: "hello",
       app: "photoshop",
       appVersion: String(app.version ?? ""),
-      adapterVersion: "0.2.0",
+      adapterVersion: "0.3.0",
       capabilities: CAPABILITIES
     });
     inspectContext()
