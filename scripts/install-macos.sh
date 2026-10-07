@@ -26,7 +26,7 @@ echo
 echo "Installed CEP bridge to:"
 echo "  $CEP_TARGET"
 echo
-echo "Restart any currently open Premiere Pro / After Effects / Illustrator / InDesign instance once so it discovers the extension."
+echo "Restart any currently open Premiere Pro / After Effects / Illustrator / InDesign / Animate / Audition / Bridge instance once so it discovers the extension."
 echo "After discovery, the adapter reconnects automatically whenever Adobe MCP is running."
 echo
 echo "Photoshop uses adapters/photoshop-uxp and must be loaded once through Adobe UXP Developer Tool during development."

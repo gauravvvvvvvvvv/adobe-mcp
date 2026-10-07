@@ -9,6 +9,7 @@ import { discoverAdobeInstalls } from "./discovery.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..");
 const port = Number.parseInt(process.env.ADOBE_MCP_BRIDGE_PORT ?? "38470", 10);
+const documentsDir = process.env.ADOBE_MCP_DOCUMENTS_DIR ?? join(homedir(), "Documents");
 
 function commandInfo(command: string, args: string[] = ["-version"]) {
   try {
@@ -21,7 +22,8 @@ function commandInfo(command: string, args: string[] = ["-version"]) {
   }
 }
 
-async function exists(path: string) {
+async function exists(path: string | null | undefined) {
+  if (!path) return false;
   try {
     await access(path);
     return true;
@@ -54,15 +56,30 @@ async function bridgeHealth(): Promise<Record<string, unknown>> {
   });
 }
 
-function cepInstallPath() {
+function platformPaths() {
+  const appData = process.env.APPDATA;
   if (process.platform === "win32") {
-    const appData = process.env.APPDATA;
-    return appData ? join(appData, "Adobe", "CEP", "extensions", "com.gaurav.adobe-mcp") : null;
+    return {
+      cep: appData ? join(appData, "Adobe", "CEP", "extensions", "com.gaurav.adobe-mcp") : null,
+      lightroom: appData ? join(appData, "Adobe", "Lightroom", "Modules", "AdobeMCP.lrplugin") : null,
+      acrobat: appData ? join(appData, "Adobe", "Acrobat", "DC", "JavaScripts", "AdobeMCP.js") : null,
+      substance: join(documentsDir, "Adobe", "Adobe Substance 3D Painter", "python", "startup", "adobe_mcp.py")
+    };
   }
   if (process.platform === "darwin") {
-    return join(homedir(), "Library", "Application Support", "Adobe", "CEP", "extensions", "com.gaurav.adobe-mcp");
+    return {
+      cep: join(homedir(), "Library", "Application Support", "Adobe", "CEP", "extensions", "com.gaurav.adobe-mcp"),
+      lightroom: join(homedir(), "Library", "Application Support", "Adobe", "Lightroom", "Modules", "AdobeMCP.lrplugin"),
+      acrobat: join(homedir(), "Library", "Application Support", "Adobe", "Acrobat", "DC", "JavaScripts", "AdobeMCP.js"),
+      substance: join(documentsDir, "Adobe", "Adobe Substance 3D Painter", "python", "startup", "adobe_mcp.py")
+    };
   }
-  return join(homedir(), ".adobe", "cep", "extensions", "com.gaurav.adobe-mcp");
+  return {
+    cep: join(homedir(), ".adobe", "cep", "extensions", "com.gaurav.adobe-mcp"),
+    lightroom: null,
+    acrobat: null,
+    substance: join(documentsDir, "Adobe", "Adobe Substance 3D Painter", "python", "startup", "adobe_mcp.py")
+  };
 }
 
 function uxpDeveloperSettings() {
@@ -70,9 +87,7 @@ function uxpDeveloperSettings() {
     const common = process.env.CommonProgramFiles ?? process.env["CommonProgramFiles(x86)"];
     return common ? join(common, "Adobe", "UXP", "Developer", "settings.json") : null;
   }
-  if (process.platform === "darwin") {
-    return "/Library/Application Support/Adobe/UXP/Developer/settings.json";
-  }
+  if (process.platform === "darwin") return "/Library/Application Support/Adobe/UXP/Developer/settings.json";
   return null;
 }
 
@@ -91,11 +106,50 @@ const nodeMajor = Number(process.versions.node.split(".")[0]);
 const installs = await discoverAdobeInstalls();
 const ffmpeg = commandInfo("ffmpeg");
 const ffprobe = commandInfo("ffprobe");
-const cepSource = join(repoRoot, "adapters", "cep-universal", "CSXS", "manifest.xml");
-const photoshopSource = join(repoRoot, "adapters", "photoshop-uxp", "manifest.json");
-const cepTarget = cepInstallPath();
+const paths = platformPaths();
 const developerMode = await parseDeveloperMode(uxpDeveloperSettings());
 const bridge = await bridgeHealth();
+
+const sources = {
+  cep: join(repoRoot, "adapters", "cep-universal", "CSXS", "manifest.xml"),
+  photoshopUxp: join(repoRoot, "adapters", "photoshop-uxp", "manifest.json"),
+  mediaEncoderUxp: join(repoRoot, "adapters", "media-encoder-uxp", "manifest.json"),
+  lightroom: join(repoRoot, "adapters", "lightroom-classic", "AdobeMCP.lrplugin", "Info.lua"),
+  acrobat: join(repoRoot, "adapters", "acrobat", "AdobeMCP.js"),
+  substancePainter: join(repoRoot, "adapters", "substance-3d-painter", "python", "startup", "adobe_mcp.py")
+};
+
+const sourceAdapters = {
+  cep: { ok: await exists(sources.cep), path: sources.cep },
+  photoshopUxp: { ok: await exists(sources.photoshopUxp), path: sources.photoshopUxp },
+  mediaEncoderUxp: { ok: await exists(sources.mediaEncoderUxp), path: sources.mediaEncoderUxp },
+  lightroom: { ok: await exists(sources.lightroom), path: sources.lightroom },
+  acrobat: { ok: await exists(sources.acrobat), path: sources.acrobat },
+  substancePainter: { ok: await exists(sources.substancePainter), path: sources.substancePainter }
+};
+
+const installedAdapters = {
+  cep: { installed: await exists(paths.cep), path: paths.cep },
+  lightroom: { installed: await exists(paths.lightroom), path: paths.lightroom },
+  acrobat: { installed: await exists(paths.acrobat), path: paths.acrobat },
+  substancePainter: { installed: await exists(paths.substance), path: paths.substance },
+  uxpDeveloperMode: developerMode,
+  photoshopUxp: {
+    sourceReady: sourceAdapters.photoshopUxp.ok,
+    installMode: "Load adapters/photoshop-uxp/manifest.json in UXP Developer Tool or install an Adobe-generated .ccx package."
+  },
+  mediaEncoderUxp: {
+    sourceReady: sourceAdapters.mediaEncoderUxp.ok,
+    installMode: "Load adapters/media-encoder-uxp/manifest.json in UXP Developer Tool for Media Encoder 27+."
+  }
+};
+
+const connectedApps = (() => {
+  const body = (bridge as { body?: { apps?: Array<{ app?: string; connected?: boolean }> } }).body;
+  return Array.isArray(body?.apps)
+    ? body!.apps!.filter((entry) => entry?.connected).map((entry) => entry.app).filter((app): app is string => typeof app === "string")
+    : [];
+})();
 
 const checks = {
   node: {
@@ -105,51 +159,67 @@ const checks = {
   },
   ffmpeg,
   ffprobe,
-  sourceAdapters: {
-    cep: { ok: await exists(cepSource), path: cepSource },
-    photoshopUxp: { ok: await exists(photoshopSource), path: photoshopSource }
-  },
-  installedAdapters: {
-    cep: cepTarget ? { installed: await exists(cepTarget), path: cepTarget } : { installed: false, path: null },
-    photoshopDeveloperMode: developerMode
-  },
+  sourceAdapters,
+  installedAdapters,
   bridge: {
     port,
-    ...bridge
+    ...bridge,
+    connectedApps
   },
   discoveredInstalls: installs
 };
 
 const hardFailures: string[] = [];
 if (!checks.node.ok) hardFailures.push("node>=20");
-if (!checks.sourceAdapters.cep.ok) hardFailures.push("cep_adapter_source");
-if (!checks.sourceAdapters.photoshopUxp.ok) hardFailures.push("photoshop_uxp_adapter_source");
+for (const [name, value] of Object.entries(sourceAdapters)) {
+  if (!value.ok) hardFailures.push(name + "_adapter_source");
+}
 
-const creativeVideoWarnings: string[] = [];
-if (!ffmpeg.ok) creativeVideoWarnings.push("ffmpeg_missing");
-if (!ffprobe.ok) creativeVideoWarnings.push("ffprobe_missing");
-if (!bridge.reachable) creativeVideoWarnings.push("bridge_not_running");
-if (!checks.installedAdapters.cep.installed) creativeVideoWarnings.push("cep_adapter_not_installed");
-if (!developerMode.developer) creativeVideoWarnings.push("photoshop_uxp_developer_mode_not_confirmed");
+const warnings: string[] = [];
+if (!ffmpeg.ok) warnings.push("ffmpeg_missing");
+if (!ffprobe.ok) warnings.push("ffprobe_missing");
+if (!(bridge as { reachable?: boolean }).reachable) warnings.push("bridge_not_running");
+if (!installedAdapters.cep.installed) warnings.push("cep_adapter_not_installed");
+if (!installedAdapters.lightroom.installed) warnings.push("lightroom_adapter_not_installed");
+if (!installedAdapters.acrobat.installed) warnings.push("acrobat_adapter_not_installed");
+if (!installedAdapters.substancePainter.installed) warnings.push("substance_painter_adapter_not_installed");
+if (!developerMode.developer) warnings.push("uxp_developer_mode_not_confirmed");
+
+const installCommand =
+  process.platform === "win32" ? "npm run install:windows" :
+  process.platform === "darwin" ? "npm run install:macos" :
+  "Install host adapters manually using docs/INSTALL.md.";
 
 const report = {
   ok: hardFailures.length === 0,
   readyForCreativeVideo: hardFailures.length === 0 && ffmpeg.ok && ffprobe.ok,
+  readyForCoreHostAutomation: hardFailures.length === 0 && installedAdapters.cep.installed,
   platform: process.platform,
   architecture: process.arch,
   repoRoot,
+  documentsDir,
   checks,
   hardFailures,
-  warnings: creativeVideoWarnings,
+  warnings,
   nextSteps: [
-    !ffmpeg.ok || !ffprobe.ok ? "Install ffmpeg/ffprobe and ensure both are on PATH." : null,
-    !checks.installedAdapters.cep.installed
-      ? (process.platform === "win32" ? "Run npm run install:windows." : process.platform === "darwin" ? "Run npm run install:macos." : "Install the CEP adapter manually.")
+    !ffmpeg.ok || !ffprobe.ok ? "Install ffmpeg/ffprobe and ensure both commands are on PATH." : null,
+    !installedAdapters.cep.installed || !installedAdapters.lightroom.installed || !installedAdapters.acrobat.installed || !installedAdapters.substancePainter.installed
+      ? installCommand
       : null,
-    !developerMode.developer ? "For Photoshop development loading, enable UXP Developer Mode and load adapters/photoshop-uxp/manifest.json in UXP Developer Tool." : null,
-    !bridge.reachable ? "Start adobe-mcp (or npm run dev) before opening/using an Adobe host." : null
+    !developerMode.developer
+      ? "Enable UXP Developer Mode, then load the Photoshop and Media Encoder manifests in Adobe UXP Developer Tool (or install Adobe-generated .ccx packages where supported)."
+      : null,
+    !(bridge as { reachable?: boolean }).reachable ? "Start adobe-mcp (or npm run dev), then reopen/check the desired Adobe host." : null,
+    (bridge as { reachable?: boolean }).reachable && connectedApps.length === 0
+      ? "The broker is running but no Adobe host adapter is connected yet. Open a configured Adobe application."
+      : null
   ].filter(Boolean),
-  note: "Discovery only reports local installations. Adobe MCP never bypasses licensing or activation."
+  notes: [
+    "CEP covers Premiere Pro, After Effects, Illustrator, InDesign, Animate, Audition and Bridge.",
+    "Photoshop and Media Encoder use UXP adapters.",
+    "Lightroom Classic uses a Lua plugin; Acrobat Pro uses a trusted folder-level JavaScript; Substance 3D Painter uses a Python startup plugin.",
+    "Discovery only reports local installations. Adobe MCP never bypasses licensing or activation."
+  ]
 };
 
 console.log(JSON.stringify(report, null, 2));

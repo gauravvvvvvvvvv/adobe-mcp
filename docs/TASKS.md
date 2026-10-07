@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Substance 3D Painter Python adapter after `1a2bf4cc`.
+Last updated commit target: full multi-host doctor/install verification after `886c713f`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -118,7 +118,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] No GitHub Actions / CI.
 - [~] UXP adapter now supports arbitrary fixed local paths via fullAccess; packaged/manual CCX installer still pending.
 - [x] macOS CEP install/uninstall scripts.
-- [~] `doctor` verifies Node, ffmpeg/ffprobe, bridge health, CEP source/install and UXP source/developer-mode state; Media Encoder-specific developer preference still needs host-side manual verification.
+- [x] `doctor` verifies Node, ffmpeg/ffprobe, bridge/connected apps, every shipped adapter source, CEP/Lightroom/Acrobat/Substance installs and shared UXP developer mode; UXP host loading itself remains intentionally verified inside Adobe UXP Developer Tool.
 - [x] `adobe-mcp-setup --client codex|claude` plus npm convenience scripts use each client CLI and avoid silent overwrite without force.
 - [x] npm package `files` includes `dist`, all adapters, docs and scripts; `prepack` runs the manual local check suite.
 

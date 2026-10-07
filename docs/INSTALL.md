@@ -28,7 +28,7 @@ The `adobe-mcp` executable must be on PATH before registering it with Codex/Clau
 npm run install:windows
 ```
 
-This installs the single CEP bridge for Premiere Pro, After Effects, Illustrator and InDesign into the current user's CEP extensions folder.
+This installs the universal CEP bridge for Premiere Pro, After Effects, Illustrator, InDesign, Animate, Audition and Bridge. The same script also installs the Lightroom Classic Lua plugin, Acrobat folder-level JavaScript and Substance 3D Painter Python startup plugin when their sources are present.
 
 ### macOS
 
@@ -36,7 +36,7 @@ This installs the single CEP bridge for Premiere Pro, After Effects, Illustrator
 npm run install:macos
 ```
 
-The installer enables local CEP development mode for CSXS 9 through 15. Existing debug-mode settings are never removed by uninstall because other local extensions may depend on them.
+The installer enables local CEP development mode for CSXS 9 through 15. Existing debug-mode settings are never removed by uninstall because other local extensions may depend on them. Restart each newly installed host once so it discovers its adapter; after discovery, MCP restarts do not require host restarts.
 
 ## 3. Photoshop UXP bridge
 
@@ -70,7 +70,27 @@ Adobe documents `.ccx` as the installable UXP package and recommends creating it
 
 Do not rename a ZIP to `.ccx` and treat it as supported packaging.
 
-## 4. Register the MCP
+## 4. Media Encoder UXP bridge
+
+Media Encoder 27+ uses its own UXP adapter. In UXP Developer Tool, choose **Add Plugin** and select:
+
+```
+adapters/media-encoder-uxp/manifest.json
+```
+
+Load it in Media Encoder. It reconnects to the same local broker and exposes queue/job operations. Keep UXP Developer Mode enabled for local development loading.
+
+## 5. Lightroom Classic, Acrobat and Substance 3D Painter
+
+The Windows/macOS installer scripts also install:
+
+- Lightroom Classic: `AdobeMCP.lrplugin` into the Lightroom Modules folder.
+- Acrobat Pro: `AdobeMCP.js` as a folder-level trusted JavaScript.
+- Substance 3D Painter: `adobe_mcp.py` under the Painter `python/startup` directory.
+
+Restart each of those applications once after the initial install. Lightroom and Acrobat reconnect using localhost HTTP polling; Painter uses a Qt WebSocket.
+
+## 6. Register the MCP
 
 ### Codex
 
@@ -92,7 +112,7 @@ adobe-mcp-setup --client claude
 
 This installs at Claude Code user scope. Native Windows uses `cmd /c` around the stdio executable, matching Claude Code's Windows MCP requirement.
 
-## 5. Verify
+## 7. Verify
 
 ```bash
 npm run doctor
