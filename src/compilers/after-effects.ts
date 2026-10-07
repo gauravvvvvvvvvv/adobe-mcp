@@ -360,6 +360,56 @@ function threeDScene(params: Record<string, unknown>): Record<string, unknown> {
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
+function trackingApply(params: Record<string, unknown>): Record<string, unknown> {
+  const operation = String(params.operation ?? "position");
+  const comp = optionalString(params, "composition");
+  const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+  const samples = objectArray(params.samples);
+  if (!samples.length) throw new Error("tracking_samples_required");
+
+  if (operation === "position" || operation === "stabilize") {
+    const normalized = samples.map((sample) => {
+      const position = Array.isArray(sample.position)
+        ? sample.position.map((value) => finiteNumber(value))
+        : [finiteNumber(sample.x), finiteNumber(sample.y)];
+      if (position.length < 2) throw new Error("tracking_position_requires_xy");
+      return { time: Math.max(0, finiteNumber(sample.time)), position };
+    });
+    const path = Array.isArray(params.path)
+      ? params.path.map(String)
+      : ["ADBE Transform Group", "ADBE Position"];
+    let body = HELPERS +
+      'var c=__comp(' + (comp ? js(comp) : "null") + ');var l=__layer(c,' + js(target) + ');var p=__prop(l,' + js(path) + ');var samples=' + js(normalized) + ';app.beginUndoGroup("Adobe MCP: apply tracking");';
+    if (operation === "position") {
+      body += 'for(var i=0;i<samples.length;i++){p.setValueAtTime(samples[i].time,samples[i].position);}';
+    } else {
+      body += 'var base=p.value,origin=samples[0].position;for(var i=0;i<samples.length;i++){var tracked=samples[i].position,next=[];for(var d=0;d<base.length;d++){var o=d<origin.length?Number(origin[d]):0;var t=d<tracked.length?Number(tracked[d]):o;next.push(Number(base[d])-(t-o));}p.setValueAtTime(samples[i].time,next);}';
+    }
+    body += 'app.endUndoGroup();return JSON.stringify({success:true,operation:' + js(operation) + ',layer:l.name,samples:samples.length,path:' + js(path) + '});';
+    return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+  }
+
+  if (operation === "cornerPin") {
+    const normalized = samples.map((sample) => ({
+      time: Math.max(0, finiteNumber(sample.time)),
+      upperLeft: Array.isArray(sample.upperLeft) ? sample.upperLeft.map((value) => finiteNumber(value)) : undefined,
+      upperRight: Array.isArray(sample.upperRight) ? sample.upperRight.map((value) => finiteNumber(value)) : undefined,
+      lowerLeft: Array.isArray(sample.lowerLeft) ? sample.lowerLeft.map((value) => finiteNumber(value)) : undefined,
+      lowerRight: Array.isArray(sample.lowerRight) ? sample.lowerRight.map((value) => finiteNumber(value)) : undefined
+    }));
+    for (const sample of normalized) {
+      if (!sample.upperLeft || !sample.upperRight || !sample.lowerLeft || !sample.lowerRight) {
+        throw new Error("cornerPin_samples_require_four_corners");
+      }
+    }
+    const body = HELPERS +
+      'var c=__comp(' + (comp ? js(comp) : "null") + ');var l=__layer(c,' + js(target) + ');var parade=l.property("ADBE Effect Parade");if(!parade)throw new Error("Effect parade unavailable");var fx=null;for(var ei=1;ei<=parade.numProperties;ei++){var existing=parade.property(ei);if(String(existing.matchName)==="ADBE Corner Pin"||String(existing.name)==="Corner Pin"){fx=existing;break;}}if(!fx){if(parade.canAddProperty&&!parade.canAddProperty("ADBE Corner Pin"))throw new Error("Corner Pin effect unavailable");fx=parade.addProperty("ADBE Corner Pin");}function corner(match,fallback){var p=null;try{p=fx.property(match);}catch(_){}if(!p){try{p=fx.property(fallback);}catch(_){}}if(!p)throw new Error("Corner Pin property unavailable: "+fallback);return p;}var ul=corner("ADBE Corner Pin-0001","Upper Left"),ur=corner("ADBE Corner Pin-0002","Upper Right"),ll=corner("ADBE Corner Pin-0003","Lower Left"),lr=corner("ADBE Corner Pin-0004","Lower Right"),samples=' + js(normalized) + ';app.beginUndoGroup("Adobe MCP: corner pin tracking");for(var i=0;i<samples.length;i++){var s=samples[i];ul.setValueAtTime(s.time,s.upperLeft);ur.setValueAtTime(s.time,s.upperRight);ll.setValueAtTime(s.time,s.lowerLeft);lr.setValueAtTime(s.time,s.lowerRight);}app.endUndoGroup();return JSON.stringify({success:true,operation:"cornerPin",layer:l.name,samples:samples.length,effect:fx.name});';
+    return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+  }
+
+  throw new Error("after-effects.tracking.apply operation must be position, stabilize or cornerPin");
+}
+
 function renderQueue(params: Record<string, unknown>): Record<string, unknown> {
   const operation = String(params.operation ?? "add");
   const comp = optionalString(params, "composition");
@@ -416,6 +466,7 @@ export function compileAfterEffects(capability: string, params: Record<string, u
     case "after-effects.masks.mattes": return masksMattes(params);
     case "after-effects.effects.apply": return effectsApply(params);
     case "after-effects.three-d.scene": return threeDScene(params);
+    case "after-effects.tracking.apply": return trackingApply(params);
     case "after-effects.render.queue": return renderQueue(params);
     default: return params;
   }

@@ -319,6 +319,40 @@ test("After Effects native text animators Bezier paths and blend modes compile",
   assert.match(blend, /BlendingMode\.SCREEN/);
 });
 
+test("After Effects tracking data compiles to position stabilization and corner pin keyframes", () => {
+  const point = scriptFor("after-effects.tracking.apply", {
+    operation: "position",
+    target: { name: "Tracked" },
+    samples: [{ time: 0, position: [100, 100] }, { time: 1, position: [140, 120] }]
+  });
+  parses(point);
+  assert.match(point, /setValueAtTime/);
+  assert.match(point, /apply tracking/);
+
+  const stabilize = scriptFor("after-effects.tracking.apply", {
+    operation: "stabilize",
+    target: { name: "Plate" },
+    samples: [{ time: 0, position: [100, 100] }, { time: 1, position: [120, 110] }]
+  });
+  parses(stabilize);
+  assert.match(stabilize, /Number\(base\[d\]\)-\(t-o\)/);
+
+  const corner = scriptFor("after-effects.tracking.apply", {
+    operation: "cornerPin",
+    target: { name: "Screen" },
+    samples: [{
+      time: 0,
+      upperLeft: [0, 0],
+      upperRight: [100, 0],
+      lowerLeft: [0, 100],
+      lowerRight: [100, 100]
+    }]
+  });
+  parses(corner);
+  assert.match(corner, /ADBE Corner Pin/);
+  assert.match(corner, /Lower Right/);
+});
+
 test("After Effects masks effects 3D footage and advanced shapes compile", () => {
   const footage = scriptFor("after-effects.layers.manage", {
     operation: "footage",

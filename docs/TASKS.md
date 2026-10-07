@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: capability-advertisement/fresh-context integrity fixes after `5a80acc7`.
+Last updated commit target: typed After Effects tracking-data application after `9ebe336a`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 

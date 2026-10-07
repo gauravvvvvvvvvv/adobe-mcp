@@ -200,6 +200,10 @@ const GUIDES: Record<string, CapabilityGuide> = {
     { operation: "configure", composition: "Main", target: { name: "Card" }, position: [960, 540, -500], yRotation: 10, motionBlur: true },
     { required: ["operation"], optional: ["composition", "target", "enabled", "position", "orientation", "xRotation", "yRotation", "zRotation", "parent", "motionBlur", "name", "center", "zoom", "intensity"], operations: ["configure", "camera", "light", "parent"] }
   ),
+  "after-effects.tracking.apply": G(
+    { operation: "position", composition: "Main", target: { name: "Tracked" }, samples: [{ time: 0, position: [100, 100] }, { time: 1, position: [140, 120] }] },
+    { required: ["operation", "target", "samples[]"], optional: ["composition", "path"], operations: ["position", "stabilize", "cornerPin"], notes: ["This applies already-computed tracking data; it does not pretend AE exposes every interactive tracking solver through scripting."] }
+  ),
   "after-effects.render.queue": G(
     { operation: "add", composition: "Main", outputPath: "D:/out/comp.mov", renderSettingsTemplate: "Best Settings", outputModuleTemplate: "Lossless", start: false },
     { required: ["operation"], optional: ["composition", "outputPath", "renderSettingsTemplate", "outputModuleTemplate", "start", "itemIndex", "paused"], operations: ["inspect", "add", "set", "remove", "render", "pause", "stop"] }
