@@ -55,7 +55,7 @@ Persistent state lives under `~/.adobe-mcp/` by default.
 
 ## Model-facing MCP tools
 
-Keep this set small:
+Keep this set small. Reusable workflows are discovered through runtime capabilities `creative.recipe.list` / `creative.recipe.expand`, not by adding MCP tools:
 
 - `adobe_status`
 - `search_capabilities`
@@ -131,7 +131,7 @@ Photoshop uses UXP.
 - Use stable object IDs and paging for large projects.
 - Context snapshots are SHA-256 hashed; callers should pass `knownHash`.
 - Do not include context in `adobe_status`.
-- Prefer one semantic recipe call over many primitive calls.
+- Prefer `creative.recipe.expand` plus a small EditSpec over rebuilding common workflows from primitive calls.
 - Return changed IDs/ranges/warnings, not whole timelines/documents.
 - Generate contact sheets/proxies instead of forcing the agent to repeatedly ingest source-resolution video.
 - Persist recipe/job/state data on disk rather than repeating it in the conversation.

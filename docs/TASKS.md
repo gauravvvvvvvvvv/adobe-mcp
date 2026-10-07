@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: durable job checkpoints/artifacts/resume after `8e826aac`.
+Last updated commit target: reusable professional recipe library after `8a13b325`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -30,7 +30,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] `creative.output.validate`
 - [~] Asset/reference analysis now includes scene cuts, sampled frames, silence map and loudness; perceptual fingerprints and per-source bulk analysis remain pending.
 - [x] Reference-video analysis manifest with shot pacing statistics, proxy/contact sheet/waveform and sampled-frame paths.
-- [ ] Recipe library for common professional edit/motion/graphics workflows.
+- [x] Code-backed recipe library with list/expand for Premiere rough cut, J/L-cut, beat-cut, social cutdown, AE kinetic typography/logo reveal/parallax, Photoshop compositing and Illustrator logo systems.
 - [x] Working-file checkpoints with SHA-256 snapshots and confirm-gated restore with pre-restore backup.
 - [x] Persistent per-job artifact manifest with kind/role/revision/size/hash/metadata; preview and validated deliverables can auto-register.
 - [x] Persistent running/succeeded/failed operation states; interrupted operations become unknown-outcome and are never replayed unless resumeUnknown=true.
@@ -49,10 +49,10 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [~] SRT/project-item import into caption track with caption-format mapping; styling/readback remains limited by Premiere scripting API.
 - [~] MOGRT import, named properties and best-effort Source Text payload mutation.
 - [~] Adobe Media Encoder handoff with explicit .epr preset and output path.
-- [ ] High-level rough-cut recipe.
-- [ ] J/L-cut recipe.
-- [ ] Beat-cut / music-sync recipe.
-- [ ] Social cutdown / aspect-ratio adaptation recipe.
+- [x] High-level rough-cut recipe.
+- [x] J/L-cut recipe blueprint with independently addressable audio/video trim operations.
+- [x] Beat-cut / music-sync recipe using explicit beat timestamps.
+- [~] Social cutdown recipe covers reframing/captions/QA; target sequence preset/aspect-ratio creation remains host/preset dependent.
 - [x] Timeline structural QA for gaps, overlaps and suspiciously short video clips plus compact track structure.
 
 ## After Effects
@@ -67,9 +67,9 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [ ] Effects/plugin parameters.
 - [ ] Cameras/lights/3D layers.
 - [~] Render queue item/output path/templates/start controls.
-- [ ] Kinetic typography recipe.
-- [ ] Logo reveal recipe.
-- [ ] Parallax/camera-push recipe.
+- [x] Kinetic typography recipe.
+- [x] Logo reveal recipe.
+- [~] Parallax recipe prepares camera/depth layers; explicit camera animation is appended by the agent.
 - [ ] Lower-third / HUD recipe.
 - [ ] Compositing/VFX recipe primitives.
 
@@ -86,7 +86,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [~] Typed destructive brightness/contrast, levels, Gaussian blur and sharpen; adjustment-layer recipes/more filters pending.
 - [~] Smart-object replace-contents via UXP session token; relink/edit-content pending.
 - [~] PNG/JPEG/PSD/PSB save-as to arbitrary local paths.
-- [ ] Compositing/retouch recipe primitives.
+- [~] Compositing recipe covers subject selection/mask/export; advanced retouch recipes remain pending.
 
 ## Illustrator
 
@@ -99,7 +99,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [ ] Symbols/patterns/brushes.
 - [ ] Image trace.
 - [~] SVG/PNG/JPEG export; PDF-specific save/export pending.
-- [ ] Logo/vector-asset recipe primitives.
+- [x] Logo/vector recipe builds deterministic primitives plus optional wordmark.
 
 ## Other Adobe hosts
 

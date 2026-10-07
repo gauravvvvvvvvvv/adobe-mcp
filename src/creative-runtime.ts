@@ -14,6 +14,7 @@ import {
 } from "./job-files.js";
 import { generateReviewPack, validateMediaOutput } from "./media-review.js";
 import { analyzeReference } from "./reference-analysis.js";
+import { expandRecipe, listRecipes } from "./recipes.js";
 import type { LocalBridgeBroker } from "./broker.js";
 import { invokeAdobeCapability } from "./invoke.js";
 import type { AdobeApp } from "./types.js";
@@ -159,6 +160,18 @@ export class CreativeRuntime {
   }
 
   async execute(capability: string, params: Record<string, unknown>, timeoutMs = 120_000): Promise<unknown> {
+    if (capability === "creative.recipe.list") {
+      return { recipes: listRecipes() };
+    }
+
+    if (capability === "creative.recipe.expand") {
+      if (typeof params.recipeId !== "string") throw new Error("recipeId_required");
+      const input = params.input && typeof params.input === "object" && !Array.isArray(params.input)
+        ? params.input as Record<string, unknown>
+        : {};
+      return expandRecipe(params.recipeId, input);
+    }
+
     if (capability === "creative.assets.index") {
       const paths = Array.isArray(params.paths) ? params.paths.filter((x): x is string => typeof x === "string") : [];
       if (!paths.length) throw new Error("paths_required");

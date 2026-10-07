@@ -18,6 +18,8 @@ const R = (
 ): Capability => ({ app: "runtime", id, title, description, tags, risk });
 
 export const CAPABILITIES: Capability[] = [
+  R("creative.recipe.list", "List professional recipes", "Return compact IDs and summaries for reusable edit, motion, compositing and vector workflows.", ["creative","recipe","workflow","template"], "read"),
+  R("creative.recipe.expand", "Expand a professional recipe", "Expand one compact recipe ID plus inputs into semantic operations, acceptance criteria and workflow notes.", ["creative","recipe","workflow","template","expand"], "read"),
   R("creative.assets.index", "Index creative assets", "Scan local source/reference assets and return compact media metadata; ffprobe enriches video/audio when installed.", ["creative","assets","media","reference","index"], "read"),
   R("creative.reference.analyze", "Analyze a reference video", "Extract scene-cut timing, shot pacing, silence, loudness, sampled frames and compact review artifacts from a local reference video.", ["creative","reference","video","pacing","style","analysis"], "write"),
   R("creative.preview.generate", "Generate review artifacts", "Create a low-resolution video proxy, sampled contact sheet and optional waveform using local ffmpeg so the agent can inspect its own output.", ["creative","review","preview","contact-sheet","waveform"], "write"),
