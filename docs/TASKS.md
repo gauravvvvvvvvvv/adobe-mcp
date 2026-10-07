@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: local ffmpeg rhythm/silence analysis for beat-aware one-prompt edits after `eabbc17f`.
+Last updated commit target: TypeScript 7 / MCP v2 build compatibility and registry metadata after `d4f7a220`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -122,6 +122,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Installation / operations
 
+- [x] MCP registry metadata declares both custom install discovery variables: `ADOBE_MCP_APP_DIRS` and `ADOBE_MCP_APP_PATHS`.
 - [x] Bounded custom/nonstandard Adobe install discovery via standard roots plus `ADOBE_MCP_APP_DIRS` and exact `ADOBE_MCP_APP_PATHS`, with deduplication.
 - [x] `npm run release:check` validates adapter sources, UXP manifests, package/no-CI contract and rejects any unexpected implementation partials while reporting external release gates.
 - [x] Windows CEP manual install/uninstall.
@@ -134,6 +135,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Tests and quality
 
+- [x] TypeScript 7 explicitly includes Node type declarations; release gate rejects missing `compilerOptions.types: ["node"]`.
 - [x] Parser/static replay caught and repaired stale acceptance/Photoshop regression assertions before real-host release validation.
 - [x] Catalog coverage regression verifies every advertised capability has an implementation source and no duplicate IDs.
 - [x] Unit tests for EditSpec validation/defaults/rejections.

@@ -30,6 +30,12 @@
           "description": "Optional extra Adobe application directories separated by the platform path delimiter.",
           "isRequired": false,
           "isSecret": false
+        },
+        {
+          "name": "ADOBE_MCP_APP_PATHS",
+          "description": "Optional exact local Adobe application folders or executables separated by the platform path delimiter.",
+          "isRequired": false,
+          "isSecret": false
         }
       ]
     }

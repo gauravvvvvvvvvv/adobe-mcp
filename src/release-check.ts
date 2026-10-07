@@ -20,6 +20,13 @@ const warnings: string[] = [];
 const checks: Record<string, unknown> = {};
 
 const packageJson = await json(join(root, "package.json"));
+
+const tsconfig = await json(join(root, "tsconfig.json"));
+if (!Array.isArray(tsconfig.compilerOptions?.types) || !tsconfig.compilerOptions.types.includes("node")) {
+  errors.push("typescript_node_types_missing");
+}
+checks.typescript = { nodeTypes: tsconfig.compilerOptions?.types ?? [] };
+
 checks.package = {
   name: packageJson.name,
   version: packageJson.version,
