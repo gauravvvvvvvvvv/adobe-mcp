@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: typed Photoshop vector-path surface after `dbec96d7`.
+Last updated commit target: automatic catalog-to-implementation coverage audit and precise capability contracts after `f99699ef`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -131,6 +131,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Tests and quality
 
+- [x] Catalog coverage regression verifies every advertised capability has an implementation source and no duplicate IDs.
 - [x] Unit tests for EditSpec validation/defaults/rejections.
 - [x] Runtime tests cover checkpoints/restore/artifacts, crash unknown-outcome handling, review acceptance enforcement and repair planning.
 - [x] Unit tests for script escaping/injection safety.

@@ -13,4 +13,6 @@ test("manual release gate enforces repo contract and external gates", async () =
   assert.match(source, /runtime_version_mismatch/);
   assert.match(source, /manifest_version_mismatch/);
   assert.match(source, /capability-guides\.ts/);
+  assert.match(source, /catalog_capability_without_implementation/);
+  assert.match(source, /capabilityCoverage/);
 });

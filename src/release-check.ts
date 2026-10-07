@@ -1,6 +1,8 @@
 import { access, readFile, readdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CAPABILITIES } from "./catalog.js";
+import { auditCapabilitySources } from "./capability-coverage.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -31,6 +33,7 @@ const requiredFiles = [
   "src/broker.ts",
   "src/creative-runtime.ts",
   "src/capability-guides.ts",
+  "src/capability-coverage.ts",
   "src/version.ts",
   "src/asset-analysis.ts",
   "src/limits.ts",
@@ -53,6 +56,10 @@ const missing: string[] = [];
 for (const relative of requiredFiles) if (!(await exists(join(root, relative)))) missing.push(relative);
 checks.requiredFiles = { total: requiredFiles.length, missing };
 if (missing.length) errors.push("required_files_missing");
+
+const capabilityCoverage = await auditCapabilitySources(root, CAPABILITIES);
+checks.capabilityCoverage = capabilityCoverage;
+if (!capabilityCoverage.ok) errors.push("catalog_capability_without_implementation");
 
 async function validateUxp(relative: string, expectedHost: string) {
   const path = join(root, relative);

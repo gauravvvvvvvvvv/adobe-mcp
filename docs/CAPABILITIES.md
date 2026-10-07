@@ -1,68 +1,107 @@
 # Capability map
 
-This document summarizes the v0.1 semantic surface. `search_capabilities` stays intentionally compact; call `get_capability` for an on-demand parameter/operation/example guide for common capabilities, and `creative.runtime.limits` for known host/API ceilings. The live completion state remains `docs/TASKS.md`.
+This document summarizes the **implemented v0.1 semantic surface**. `search_capabilities` stays intentionally compact; call `get_capability` for an on-demand parameter/operation/example guide, and `creative.runtime.limits` for known host/API ceilings. The live completion state is in `docs/TASKS.md`.
+
+## Creative runtime
+
+Persistent EditSpec jobs, asset indexing/fingerprinting, reference-video analysis, reusable recipes, checkpoints/restores, artifact manifests, rendered-output validation, proxy/contact-sheet/waveform generation, explicit review verdicts and repair planning.
 
 ## Premiere Pro
 
-Project/media ingest, bins, metadata, relink, replace footage, proxies, sequences, tracks, markers, multicam, transcript/captions, clip insert/overwrite, ripple/roll/slip/slide/razor/lift/extract, speed/duration, time remapping, transforms, opacity, crop, masks, keyframes/easing, transitions, native/installed effects, color/LUT workflows, audio gain/mix/fades/effects/ducking, titles/graphics/MOGRT parameters, nesting, sync, render previews, export and Media Encoder queueing.
+- project open/new/close/save/save-as, bin creation, media import, sequence create/activate
+- explicit insert/overwrite assembly from source ranges
+- move/delete/ripple-delete/trim/razor/lift/extract/speed/reverse/enable-disable edits
+- structural timeline QA
+- generic component-property animation, Crop and Time Remapping Speed
+- installed video/audio effects and transitions through Premiere/QE, with exposed named parameter writes
+- Lumetri parameter/LUT apply plus compact property inspection
+- clip volume/pan, volume keyframes, ducking curves and whole-track mute
+- SRT/caption item import into caption tracks
+- MOGRT import/inspect, named parameter writes and best-effort editable Source Text
+- AME handoff with explicit preset/output path
 
-Higher-level editor operations should include: assemble from selects, cut to music/beats, remove pauses, build social cutdowns, J/L cuts, B-roll insertion, continuity cleanup, multicam switching, dialogue cleanup, caption styling, shot normalization and export variants.
+Full Audio Track Mixer automation and stable cross-version caption styling/readback are explicit host limits.
 
 ## After Effects
 
-Projects, footage, comps, precomps, layer creation/import/ordering/parenting, transforms, 2D/3D layers, cameras, lights, text, text animators, shape layers, vector paths, fills/strokes, trim paths/repeaters/modifiers, masks, feathering, mattes, blend modes, keyframes, graph/easing/tangents, expressions, markers, time remap, effects/plugins, effect parameters, adjustment layers, nulls, motion blur, cameras, basic tracking/stabilization commands where exposed, render queue and output modules.
+- composition create/configure/duplicate/precompose
+- text/solid/null/shape/camera/light/footage layers plus duplicate/remove/parent/reorder
+- generic property-path keyframes, interpolation/easing/roving/Bezier controls and expressions
+- native text animators and range-selector keyframes
+- rectangle/ellipse/arbitrary Bezier shape layers, fill/stroke, trim paths and repeaters
+- masks, track mattes and blend modes
+- installed effects, parameters and `.ffx` presets
+- 3D layers, cameras, lights and parenting
+- apply precomputed tracking data to Position, stabilization or Corner Pin
+- render queue inspect/add/set/remove/render/pause/stop
 
-The semantic layer should be able to describe motion-design intent such as logo reveals, kinetic typography, parallax, lower thirds, HUDs, particles/plugin setups, transitions, camera moves, title sequences and compositing recipes, then compile those into native layer/property operations.
-
-Not every interactive AE feature is scriptable. Roto Brush painting and some third-party panels are examples where an optional UI/operator fallback may be required.
+The runtime does not claim to expose every interactive tracker/roto workflow.
 
 ## Photoshop
 
-Documents/canvas, layers/groups, selections, masks, channels, transforms, smart objects, adjustment layers, blend modes, layer styles, filters/smart filters, batchPlay operations, text/typography, paths/vector shapes, crop/resize, content-aware/retouch commands where exposed, brushes/actions, guides, artboards, color profiles, exports and asset variants.
+- document create/open/save/duplicate/resize/crop
+- layer create/group/order/duplicate/delete/transform/blend/clipping-mask operations
+- layer-wide and mixed-range typography
+- selection geometry/subject/refinement/boundary transforms/work-path/mask creation
+- Content-Aware Fill plus path-driven Clone Stamp / Healing Brush retouching
+- non-destructive adjustment-layer creation and typed common adjustment parameters
+- common filters/smart filters plus explicit `batchPlay` fallback
+- Smart Object convert/replace/relink/edit/update
+- vector path list/create/select/duplicate/remove/selection/stroke/fill/clipping-path operations
+- PNG/JPEG/PSD/PSB save-as
+
+Less-common Action Manager operations remain available through the explicit descriptor escape hatch.
 
 ## Illustrator
 
-Documents/artboards, layers, paths, anchors/handles, primitive shapes, compound paths, clipping masks, pathfinder/boolean operations, transforms, align/distribute, fills/strokes, gradients, appearance, opacity/blending, typography, type-on-path, symbols, patterns, brushes, swatches, placed/embedded images, image trace, effects where scriptable and SVG/PDF/raster export.
+- document lifecycle and artboard lifecycle
+- primitive/Bezier vector paths, compound paths and clipping groups
+- move/rotate/scale/z-order plus align/distribute
+- fill/stroke/opacity/blend modes, gradients, existing patterns, graphic styles and live-effect XML
+- point/area/path text with paragraph and per-character styling
+- symbols plus application of existing patterns/brushes
+- image trace and expansion
+- SVG/PNG/JPEG/PDF export
+
+Brush-definition authoring and arbitrary pattern-tile population are explicit scripting-model limits.
 
 ## Media Encoder
 
-Queue items, source discovery, sequence/comp handoff, preset discovery/application, output paths, queue start/stop, status and batch variants.
+Native UXP queue status/control, enqueue/render/stitch/image-sequence, job/log/missing-asset inspection, project GUID lookup and add-output. Preset support validates/inspects local `.epr` files and lists `.epr` files in known folders; queue operations consume the selected preset path.
 
 ## Audition
 
-Session/file context, clip placement, gain/fades, effects and cleanup/loudness workflows only to the degree exposed by an installed automation surface. Audition has a narrower official scripting story than Photoshop/Illustrator/InDesign, so the adapter must report real capabilities instead of pretending full parity.
+Stable CEP surface for open/save/close, Favorites, arbitrary enabled commands, transport/loop control, multitrack track state and markers. Deep interactive effect-rack graph editing is not claimed.
 
 ## InDesign
 
-Documents, pages/spreads, frames, text, styles, tables, links/assets, master/parent pages, layout geometry, preflight and PDF/export workflows.
+Typed document/page/text/image/style/link/export layout operations through the CEP compiler.
 
 ## Animate
 
-JSFL-driven documents, library assets, symbols, layers, frames, keyframes, classic/motion tweens, transforms and publishing.
+Document create/open/save/publish/export plus layer/frame/keyframe/motion-tween/text/alignment operations through JSFL.
 
 ## Lightroom Classic
 
-Lua-plugin catalog queries, metadata, collections, ratings/flags, develop/export workflows available to the plugin SDK.
+Lua startup-plugin catalog/selection inspection, metadata read/write, develop preset application, rotation, imports, virtual copies, collections and programmatic export.
 
-## Acrobat
+## Acrobat Pro
 
-Document/page operations, forms, annotations, JavaScript actions, metadata and export/processing available to Acrobat automation.
+Trusted folder-level JavaScript for inspect/open/save/close, page insert/delete/replace/extract/rotate, watermarks, annotations, forms, flattening and page labels.
 
 ## Bridge
 
-Asset browsing, metadata, labels/ratings, rename/move/copy, collections and batch asset workflows.
+Selection/inspect, ratings, labels, metadata serialization, copy/move/open and folder browsing.
 
-## Substance 3D family
+## Substance 3D Painter
 
-Per-product adapters using available Python/plugin APIs for project, material, texture, render and export workflows. Exact coverage is product/version specific.
+Python startup adapter for project lifecycle, texture-set/stack inspection, fill/paint/group layers, material/resource operations, blending/opacity and texture export/preview.
 
 ## Required behavior for every adapter
 
-- Auto-reconnect to the local broker.
-- Announce exact capabilities at runtime.
-- Stable IDs for documents, comps, layers, clips and other addressable objects.
-- Compact context snapshots.
-- Group edits into one undo group/transaction when the host supports it.
-- Return changed-object IDs and warnings instead of huge payloads.
-- Never silently fake unsupported functionality.
-- Prefer native APIs, then host scripting/command IDs, then explicitly opt-in UI fallback.
+- reconnect to the local broker without requiring an MCP restart
+- announce real capabilities at runtime
+- return compact context/state
+- fail explicitly instead of silently faking unsupported behavior
+- prefer native/official APIs, then host scripting/command IDs, then documented fallbacks
+- keep model-facing operations semantic rather than exposing hundreds of primitive tools
