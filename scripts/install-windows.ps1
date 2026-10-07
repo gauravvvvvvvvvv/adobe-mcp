@@ -43,3 +43,14 @@ if (Test-Path -LiteralPath (Join-Path $LightroomSource "Info.lua")) {
     Copy-Item -LiteralPath $LightroomSource -Destination $LightroomTarget -Recurse -Force
     Write-Host "  $LightroomTarget"
 }
+
+$AcrobatSource = Join-Path $RepoRoot "adapters\acrobat\AdobeMCP.js"
+$AcrobatRoot = Join-Path $env:APPDATA "Adobe\Acrobat\DC\JavaScripts"
+$AcrobatTarget = Join-Path $AcrobatRoot "AdobeMCP.js"
+if (Test-Path -LiteralPath $AcrobatSource) {
+    Write-Host ""
+    Write-Host "Installing Acrobat Adobe MCP folder-level script..."
+    New-Item -ItemType Directory -Path $AcrobatRoot -Force | Out-Null
+    Copy-Item -LiteralPath $AcrobatSource -Destination $AcrobatTarget -Force
+    Write-Host "  $AcrobatTarget"
+}

@@ -42,3 +42,14 @@ if [[ -f "$LIGHTROOM_SOURCE/Info.lua" ]]; then
   cp -R "$LIGHTROOM_SOURCE" "$LIGHTROOM_TARGET"
   echo "  $LIGHTROOM_TARGET"
 fi
+
+ACROBAT_SOURCE="$REPO_ROOT/adapters/acrobat/AdobeMCP.js"
+ACROBAT_ROOT="$HOME/Library/Application Support/Adobe/Acrobat/DC/JavaScripts"
+ACROBAT_TARGET="$ACROBAT_ROOT/AdobeMCP.js"
+if [[ -f "$ACROBAT_SOURCE" ]]; then
+  echo
+  echo "Installing Acrobat Adobe MCP folder-level script..."
+  mkdir -p "$ACROBAT_ROOT"
+  cp "$ACROBAT_SOURCE" "$ACROBAT_TARGET"
+  echo "  $ACROBAT_TARGET"
+fi
