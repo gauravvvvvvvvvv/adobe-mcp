@@ -9,29 +9,96 @@ const HELPERS = [
 function documentManage(params: Record<string, unknown>): Record<string, unknown> {
   const operation = String(params.operation ?? "");
   let body = HELPERS;
+
   if (operation === "create") {
     const width = Math.max(1, finiteNumber(params.width, 1920));
     const height = Math.max(1, finiteNumber(params.height, 1080));
-    body += 'var d=app.documents.add(DocumentColorSpace.RGB,' + width + ',' + height + ');return JSON.stringify({success:true,name:d.name,width:d.width,height:d.height});';
+    const colorSpace = String(params.colorSpace ?? "rgb").toLowerCase() === "cmyk"
+      ? "DocumentColorSpace.CMYK"
+      : "DocumentColorSpace.RGB";
+    body += 'var d=app.documents.add(' + colorSpace + ',' + width + ',' + height + ');';
+    body += 'return JSON.stringify({success:true,operation:"create",name:d.name,width:d.width,height:d.height,artboards:d.artboards.length});';
+  } else if (operation === "open") {
+    const path = requireString(params, "path");
+    body += 'var f=new File(' + js(path) + ');if(!f.exists)throw new Error("Illustrator document not found");var d=app.open(f);return JSON.stringify({success:true,operation:"open",name:d.name,path:d.fullName?d.fullName.fsName:f.fsName,artboards:d.artboards.length});';
+  } else if (operation === "save") {
+    body += 'var d=__doc();d.save();return JSON.stringify({success:true,operation:"save",name:d.name,path:d.fullName?d.fullName.fsName:null});';
   } else if (operation === "saveAs") {
     const path = requireString(params, "path");
-    body += 'var d=__doc();var f=new File(' + js(path) + ');if(f.parent&&!f.parent.exists)f.parent.create();d.saveAs(f);return JSON.stringify({success:true,path:f.fsName});';
+    body += 'var d=__doc();var f=new File(' + js(path) + ');if(f.parent&&!f.parent.exists)f.parent.create();d.saveAs(f);return JSON.stringify({success:true,operation:"saveAs",path:f.fsName});';
+  } else if (operation === "close") {
+    const save = params.save === true;
+    body += 'var d=__doc();var name=d.name;var path=null;try{path=d.fullName.fsName;}catch(_){}d.close(' + (save ? "SaveOptions.SAVECHANGES" : "SaveOptions.DONOTSAVECHANGES") + ');return JSON.stringify({success:true,operation:"close",name:name,path:path,saved:' + (save ? "true" : "false") + '});';
+  } else if (operation === "listArtboards") {
+    body += 'var d=__doc();var list=[];for(var i=0;i<d.artboards.length;i++){var a=d.artboards[i];list.push({index:i,name:a.name,rect:a.artboardRect});}return JSON.stringify({success:true,operation:"listArtboards",active:d.artboards.getActiveArtboardIndex(),artboards:list});';
   } else if (operation === "addArtboard") {
     const rect = Array.isArray(params.rect) ? params.rect : [0,1080,1920,0];
-    body += 'var d=__doc();var a=d.artboards.add(' + js(rect) + ');return JSON.stringify({success:true,index:d.artboards.length-1,rect:a.artboardRect});';
+    body += 'var d=__doc();var a=d.artboards.add(' + js(rect) + ');';
+    if (typeof params.name === "string" && params.name) body += 'a.name=' + js(params.name) + ';';
+    body += 'return JSON.stringify({success:true,operation:"addArtboard",index:d.artboards.length-1,name:a.name,rect:a.artboardRect});';
+  } else if (operation === "setArtboard") {
+    const index = Math.max(0, integer(params.index, 0));
+    body += 'var d=__doc();if(' + index + '>=d.artboards.length)throw new Error("Artboard index out of range");var a=d.artboards[' + index + '];';
+    if (Array.isArray(params.rect)) body += 'a.artboardRect=' + js(params.rect) + ';';
+    if (typeof params.name === "string" && params.name) body += 'a.name=' + js(params.name) + ';';
+    if (params.activate === true) body += 'd.artboards.setActiveArtboardIndex(' + index + ');';
+    body += 'return JSON.stringify({success:true,operation:"setArtboard",index:' + index + ',name:a.name,rect:a.artboardRect,active:d.artboards.getActiveArtboardIndex()});';
+  } else if (operation === "activateArtboard") {
+    const index = Math.max(0, integer(params.index, 0));
+    body += 'var d=__doc();if(' + index + '>=d.artboards.length)throw new Error("Artboard index out of range");d.artboards.setActiveArtboardIndex(' + index + ');return JSON.stringify({success:true,operation:"activateArtboard",index:' + index + ',name:d.artboards[' + index + '].name});';
+  } else if (operation === "removeArtboard") {
+    const index = Math.max(0, integer(params.index, 0));
+    body += 'var d=__doc();if(d.artboards.length<=1)throw new Error("Illustrator requires at least one artboard");if(' + index + '>=d.artboards.length)throw new Error("Artboard index out of range");var name=d.artboards[' + index + '].name;d.artboards[' + index + '].remove();return JSON.stringify({success:true,operation:"removeArtboard",index:' + index + ',name:name,remaining:d.artboards.length});';
   } else {
-    throw new Error("illustrator.document.manage operation must be create, saveAs or addArtboard");
+    throw new Error("illustrator.document.manage operation must be create, open, save, saveAs, close, listArtboards, addArtboard, setArtboard, activateArtboard or removeArtboard");
   }
+
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
 function vectorCreate(params: Record<string, unknown>): Record<string, unknown> {
-  const shape = String(params.shape ?? "rectangle");
+  const shape = String(params.shape ?? "rectangle").toLowerCase();
   const name = optionalString(params, "name") ?? "Artwork";
   const fill = Array.isArray(params.fill) ? params.fill : [0,0,0];
+  const fillEnabled = params.fill !== false;
   const stroke = Array.isArray(params.stroke) ? params.stroke : null;
   const strokeWidth = Math.max(0, finiteNumber(params.strokeWidth, 1));
-  let body = HELPERS + 'var d=__doc();var item=null;';
+
+  const normalizePath = (value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("path_object_required");
+    const spec = value as Record<string, unknown>;
+    const rawPoints = Array.isArray(spec.points) ? spec.points : [];
+    if (rawPoints.length < 2) throw new Error("points_required");
+    const anchors: unknown[] = [];
+    const left: unknown[] = [];
+    const right: unknown[] = [];
+    const smooth: boolean[] = [];
+    for (const raw of rawPoints) {
+      if (Array.isArray(raw)) {
+        if (raw.length < 2) throw new Error("path_point_requires_xy");
+        const anchor = [finiteNumber(raw[0]), finiteNumber(raw[1])];
+        anchors.push(anchor); left.push(anchor); right.push(anchor); smooth.push(false);
+      } else if (raw && typeof raw === "object") {
+        const point = raw as Record<string, unknown>;
+        const anchorRaw = Array.isArray(point.anchor) ? point.anchor : [point.x, point.y];
+        const anchor = [finiteNumber(anchorRaw[0]), finiteNumber(anchorRaw[1])];
+        const leftRaw = Array.isArray(point.leftDirection) ? point.leftDirection : anchor;
+        const rightRaw = Array.isArray(point.rightDirection) ? point.rightDirection : anchor;
+        anchors.push(anchor);
+        left.push([finiteNumber(leftRaw[0]), finiteNumber(leftRaw[1])]);
+        right.push([finiteNumber(rightRaw[0]), finiteNumber(rightRaw[1])]);
+        smooth.push(point.smooth === true || String(point.pointType ?? "").toLowerCase() === "smooth");
+      } else {
+        throw new Error("invalid_path_point");
+      }
+    }
+    return { anchors, left, right, smooth, closed: spec.closed === true };
+  };
+
+  let body = HELPERS +
+    'function __setPath(path,spec){path.setEntirePath(spec.anchors);path.closed=spec.closed;for(var pi=0;pi<path.pathPoints.length;pi++){var pp=path.pathPoints[pi];pp.leftDirection=spec.left[pi];pp.rightDirection=spec.right[pi];pp.pointType=spec.smooth[pi]?PointType.SMOOTH:PointType.CORNER;}return path;}' +
+    'var d=__doc();var item=null;';
+
   if (shape === "rectangle") {
     const x=finiteNumber(params.x,0), y=finiteNumber(params.y,1000), w=Math.max(0.1,finiteNumber(params.width,200)), h=Math.max(0.1,finiteNumber(params.height,200));
     body += 'item=d.pathItems.rectangle(' + y + ',' + x + ',' + w + ',' + h + ');';
@@ -41,17 +108,36 @@ function vectorCreate(params: Record<string, unknown>): Record<string, unknown> 
   } else if (shape === "polygon") {
     const cx=finiteNumber(params.centerX,500), cy=finiteNumber(params.centerY,500), radius=Math.max(0.1,finiteNumber(params.radius,100)), sides=Math.max(3,integer(params.sides,6));
     body += 'item=d.pathItems.polygon(' + cy + ',' + cx + ',' + radius + ',' + sides + ');';
-  } else if (shape === "path") {
-    const points = Array.isArray(params.points) ? params.points : [];
-    if (points.length < 2) throw new Error("points_required");
-    body += 'item=d.pathItems.add();item.setEntirePath(' + js(points) + ');item.closed=' + (params.closed === true ? "true" : "false") + ';';
+  } else if (shape === "path" || shape === "bezier") {
+    const pathSpec = normalizePath({ ...params, points: params.points, closed: params.closed });
+    body += 'item=__setPath(d.pathItems.add(),' + js(pathSpec) + ');';
+  } else if (shape === "compound") {
+    const paths = Array.isArray(params.paths) ? params.paths : [];
+    if (paths.length < 2) throw new Error("compound_paths_min_2");
+    const specs = paths.map(normalizePath);
+    body += 'var compound=d.activeLayer.compoundPathItems.add();var pathSpecs=' + js(specs) + ';for(var ci=0;ci<pathSpecs.length;ci++){__setPath(compound.pathItems.add(),pathSpecs[ci]);}item=compound;';
+  } else if (shape === "clippinggroup" || shape === "clipping-group") {
+    const clipTarget = params.clipTarget && typeof params.clipTarget === "object" && !Array.isArray(params.clipTarget)
+      ? params.clipTarget as Record<string, unknown>
+      : undefined;
+    const contents = Array.isArray(params.contents)
+      ? params.contents.filter((value): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value))
+      : [];
+    if (!clipTarget || !contents.length) throw new Error("clipTarget_and_contents_required");
+    body += 'var clip=__item(d,' + js(clipTarget) + ');if(clip.typename!=="PathItem"&&clip.typename!=="CompoundPathItem")throw new Error("Clipping path must be a path or compound path");var contentSpecs=' + js(contents) + ';var contentItems=[];for(var gi=0;gi<contentSpecs.length;gi++)contentItems.push(__item(d,contentSpecs[gi]));var group=d.groupItems.add();for(var gm=contentItems.length-1;gm>=0;gm--)contentItems[gm].move(group,ElementPlacement.PLACEATEND);clip.move(group,ElementPlacement.PLACEATBEGINNING);if(clip.typename==="PathItem")clip.clipping=true;else if(clip.pathItems.length)clip.pathItems[0].clipping=true;group.clipped=true;item=group;';
   } else {
-    throw new Error("illustrator.vector.create shape must be rectangle, ellipse, polygon or path");
+    throw new Error("illustrator.vector.create shape must be rectangle, ellipse, polygon, path, bezier, compound or clippingGroup");
   }
-  body += 'item.name=' + js(name) + ';item.filled=true;item.fillColor=__rgb(' + js(fill) + ');';
-  if (stroke) body += 'item.stroked=true;item.strokeColor=__rgb(' + js(stroke) + ');item.strokeWidth=' + strokeWidth + ';';
-  else body += 'item.stroked=false;';
-  body += 'return JSON.stringify({success:true,name:item.name,typename:item.typename});';
+
+  body += 'item.name=' + js(name) + ';';
+  if (shape !== "clippinggroup" && shape !== "clipping-group") {
+    body += 'var styleTarget=item.typename==="CompoundPathItem"&&item.pathItems.length?item.pathItems[0]:item;';
+    if (fillEnabled) body += 'if(styleTarget.filled!==undefined){styleTarget.filled=true;styleTarget.fillColor=__rgb(' + js(fill) + ');}';
+    else body += 'if(styleTarget.filled!==undefined)styleTarget.filled=false;';
+    if (stroke) body += 'if(styleTarget.stroked!==undefined){styleTarget.stroked=true;styleTarget.strokeColor=__rgb(' + js(stroke) + ');styleTarget.strokeWidth=' + strokeWidth + ';}';
+    else body += 'if(styleTarget.stroked!==undefined)styleTarget.stroked=false;';
+  }
+  body += 'return JSON.stringify({success:true,name:item.name,typename:item.typename,shape:' + js(shape) + '});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 

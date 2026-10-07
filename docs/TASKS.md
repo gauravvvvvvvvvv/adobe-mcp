@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: complete AE composition/animation/render controls after `0c142d38`.
+Last updated commit target: Illustrator document lifecycle and advanced vector construction after `76ae7064`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -92,8 +92,8 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 ## Illustrator
 
 - [x] CEP connection and compact context inspection.
-- [~] Document create/saveAs and artboard creation.
-- [~] Rectangle/ellipse/polygon/arbitrary-path creation.
+- [x] Document create/open/save/saveAs/close plus artboard list/add/configure/activate/remove operations.
+- [x] Rectangle/ellipse/polygon plus arbitrary Bezier paths with handles, compound paths and clipping-group construction.
 - [x] Move/rotate/scale/z-order plus mathematical alignment to artboard/selection and horizontal/vertical distribution.
 - [~] Fill/stroke/opacity, linear/radial gradients and existing-pattern fills; advanced appearance stacks/live effects remain pending.
 - [~] Point-text creation/style basics.

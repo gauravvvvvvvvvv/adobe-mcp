@@ -482,6 +482,61 @@ test("Animate Audition and Bridge semantic compilers generate parseable scripts"
   assert.match(bridge, /t\.rating=5/);
 });
 
+test("Illustrator document lifecycle Bezier compound and clipping creation compile", () => {
+  const open = scriptFor("illustrator.document.manage", {
+    operation: "open",
+    path: "C:\\art\\source.ai"
+  });
+  parses(open);
+  assert.match(open, /app\.open\(f\)/);
+
+  const artboard = scriptFor("illustrator.document.manage", {
+    operation: "setArtboard",
+    index: 0,
+    rect: [0, 1080, 1080, 0],
+    name: "Square",
+    activate: true
+  });
+  parses(artboard);
+  assert.match(artboard, /artboardRect/);
+  assert.match(artboard, /setActiveArtboardIndex/);
+
+  const bezier = scriptFor("illustrator.vector.create", {
+    shape: "bezier",
+    name: "Curve",
+    points: [
+      { anchor: [0, 0], rightDirection: [40, 0], smooth: true },
+      { anchor: [100, 100], leftDirection: [60, 100], smooth: true }
+    ],
+    stroke: [255, 0, 0],
+    fill: false
+  });
+  parses(bezier);
+  assert.match(bezier, /leftDirection/);
+  assert.match(bezier, /PointType\.SMOOTH/);
+
+  const compound = scriptFor("illustrator.vector.create", {
+    shape: "compound",
+    name: "Ring",
+    paths: [
+      { points: [[0,0],[100,0],[100,100],[0,100]], closed: true },
+      { points: [[25,25],[25,75],[75,75],[75,25]], closed: true }
+    ]
+  });
+  parses(compound);
+  assert.match(compound, /compoundPathItems\.add/);
+  assert.match(compound, /compound\.pathItems\.add/);
+
+  const clip = scriptFor("illustrator.vector.create", {
+    shape: "clippingGroup",
+    clipTarget: { name: "Mask" },
+    contents: [{ name: "Photo" }]
+  });
+  parses(clip);
+  assert.match(clip, /group\.clipped=true/);
+  assert.match(clip, /PLACEATBEGINNING/);
+});
+
 test("Premiere professional finishing compilers emit QE/MOGRT/caption operations", () => {
   const speed = scriptFor("premiere.timeline.edit", {
     operation: "speed",
