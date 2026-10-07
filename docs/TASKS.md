@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: documentation/bootstrap after `812c567c`.
+Last updated commit target: semantic compiler implementation after `0b487bfc`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -38,17 +38,17 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 ## Premiere Pro
 
 - [x] CEP host connection and compact context inspection.
-- [ ] Typed project operations: save, import media, bins, sequence selection/creation.
-- [ ] Typed timeline assembly from explicit source ranges.
-- [ ] Typed insert/overwrite/move/trim/ripple/razor/lift/extract operations.
+- [~] Typed project operations: save/saveAs, import media, bins, sequence activation/creation.
+- [~] Typed timeline assembly from explicit source ranges, tracks and placement times.
+- [~] Typed insert/overwrite assembly plus move/trim/delete/ripple-delete/set-enabled primitives; razor/lift/extract still pending.
 - [ ] Clip speed/duration and time-remap primitives.
-- [ ] Motion/opacity/crop keyframes.
+- [~] Generic component/property keyframes support Motion/Opacity and other exposed properties; crop-specific helper pending.
 - [ ] Effects and transition application.
 - [ ] Color/LUT controls.
-- [ ] Audio gain/fades/mixing primitives.
+- [~] Clip volume level + volume-keyframe primitives; pan/track mix/ducking helpers pending.
 - [ ] Caption/subtitle operations.
 - [ ] Graphics/MOGRT operations.
-- [ ] Export / Media Encoder handoff.
+- [~] Adobe Media Encoder handoff with explicit .epr preset and output path.
 - [ ] High-level rough-cut recipe.
 - [ ] J/L-cut recipe.
 - [ ] Beat-cut / music-sync recipe.
@@ -58,15 +58,15 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 ## After Effects
 
 - [x] CEP host connection and compact context inspection.
-- [ ] Typed composition creation/duplication/precomp.
-- [ ] Typed layer creation/import/parent/reorder.
-- [ ] Typed transform/property keyframes and easing.
-- [ ] Text layers and text animators.
-- [ ] Shape layers, paths, fills, strokes, trim paths/repeaters.
+- [~] Typed composition create/duplicate/precompose.
+- [~] Typed text/solid/null/shape/camera/light create plus duplicate/remove; footage import/parent/reorder pending.
+- [~] Generic property-path keyframes and temporal easing.
+- [~] Text-layer creation with transform intro animation; native text animator selectors pending.
+- [~] Rectangle/ellipse shape layers with fills; arbitrary paths/strokes/trim/repeaters pending.
 - [ ] Masks/mattes/blend modes.
 - [ ] Effects/plugin parameters.
 - [ ] Cameras/lights/3D layers.
-- [ ] Render queue/output module controls.
+- [~] Render queue item/output path/templates/start controls.
 - [ ] Kinetic typography recipe.
 - [ ] Logo reveal recipe.
 - [ ] Parallax/camera-push recipe.
@@ -91,14 +91,14 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 ## Illustrator
 
 - [x] CEP connection and compact context inspection.
-- [ ] Typed document/artboard operations.
-- [ ] Path/shape creation.
-- [ ] Transforms/alignment/distribution.
-- [ ] Fill/stroke/gradient/appearance.
-- [ ] Typography.
+- [~] Document create/saveAs and artboard creation.
+- [~] Rectangle/ellipse/polygon/arbitrary-path creation.
+- [~] Move/rotate/scale; alignment/distribution pending.
+- [~] Fill/stroke/opacity; gradient/advanced appearance pending.
+- [~] Point-text creation/style basics.
 - [ ] Symbols/patterns/brushes.
 - [ ] Image trace.
-- [ ] SVG/PDF/raster export.
+- [~] SVG/PNG/JPEG export; PDF-specific save/export pending.
 - [ ] Logo/vector-asset recipe primitives.
 
 ## Other Adobe hosts

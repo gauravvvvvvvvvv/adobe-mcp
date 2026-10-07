@@ -6,6 +6,7 @@ import { LocalBridgeBroker } from "./broker.js";
 import { getCapability, searchCapabilities } from "./catalog.js";
 import { CreativeRuntime } from "./creative-runtime.js";
 import { discoverAdobeInstalls } from "./discovery.js";
+import { invokeAdobeCapability } from "./invoke.js";
 import { ADOBE_APPS, type AdobeApp } from "./types.js";
 import { ADOBE_MCP_VERSION } from "./version.js";
 
@@ -40,7 +41,7 @@ async function invokeCapability(capability: string, params: Record<string, unkno
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
-  return broker.invoke(spec.app, capability, params, timeoutMs);
+  return invokeAdobeCapability(broker, spec.app, capability, params, timeoutMs);
 }
 
 server.registerTool(

@@ -7,6 +7,7 @@ import { getCapability } from "./catalog.js";
 import { editSpecSchema, validateEditSpec, type EditSpec } from "./creative-spec.js";
 import { generateReviewPack, validateMediaOutput } from "./media-review.js";
 import type { LocalBridgeBroker } from "./broker.js";
+import { invokeAdobeCapability } from "./invoke.js";
 import type { AdobeApp } from "./types.js";
 
 type JobStatus = "planned" | "executing" | "awaiting_review" | "needs_repair" | "completed" | "failed";
@@ -229,7 +230,8 @@ export class CreativeRuntime {
           continue;
         }
 
-        const bridgeResult = await this.broker.invoke(
+        const bridgeResult = await invokeAdobeCapability(
+          this.broker,
           definition.app as AdobeApp,
           operation.capability,
           operation.params,

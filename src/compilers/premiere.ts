@@ -1,0 +1,147 @@
+import { finiteNumber, integer, js, objectArray, optionalString, requireString, wrapScript } from "./common.js";
+
+const HELPERS = [
+'function __time(seconds){var t=new Time();t.seconds=Number(seconds);return t;}',
+'function __sec(value){if(value===null||value===undefined)return null;try{if(typeof value.seconds==="number")return value.seconds;}catch(_){}try{if(value.ticks!==undefined)return Number(value.ticks)/254016000000.0;}catch(_){}var n=Number(value);return isNaN(n)?null:n;}',
+'function __findSequence(idOrName){var p=app.project;if(!p)return null;if(p.activeSequence&&(String(p.activeSequence.sequenceID)===String(idOrName)||String(p.activeSequence.name)===String(idOrName)))return p.activeSequence;for(var i=0;i<p.sequences.numSequences;i++){var s=p.sequences[i];if(String(s.sequenceID)===String(idOrName)||String(s.name)===String(idOrName))return s;}return null;}',
+'function __sequence(idOrName){var s=idOrName?__findSequence(idOrName):app.project.activeSequence;if(!s)throw new Error("Sequence not found");try{if(app.project.activeSequence!==s&&app.project.openSequence)app.project.openSequence(s.sequenceID);}catch(_){}try{app.project.activeSequence=s;}catch(_){}return s;}',
+'function __walk(item,fn){if(!item)return null;if(fn(item))return item;try{if(item.children){for(var i=0;i<item.children.numItems;i++){var hit=__walk(item.children[i],fn);if(hit)return hit;}}}catch(_){}return null;}',
+'function __projectItemByPath(path){return __walk(app.project.rootItem,function(item){try{return item.getMediaPath&&String(item.getMediaPath())===String(path);}catch(_){return false;}});}',
+'function __projectItemByName(name){return __walk(app.project.rootItem,function(item){try{return String(item.name)===String(name);}catch(_){return false;}});}',
+'function __ensureProjectItem(path){var found=__projectItemByPath(path);if(found)return found;var f=new File(path);if(!f.exists)throw new Error("Media file not found: "+path);var ok=app.project.importFiles([f.fsName],true,app.project.rootItem,false);if(!ok)throw new Error("Premiere import failed: "+path);found=__projectItemByPath(f.fsName)||__projectItemByName(f.name);if(!found)throw new Error("Imported media could not be resolved: "+path);return found;}',
+'function __clip(seq,spec){var type=String(spec.trackType||"video").toLowerCase();var tracks=type==="audio"?seq.audioTracks:seq.videoTracks;var ti=Number(spec.trackIndex||0);if(ti<0||ti>=tracks.numTracks)throw new Error("Track index out of range: "+ti);var track=tracks[ti];var clips=track.clips;if(spec.clipIndex!==undefined&&spec.clipIndex!==null){var ci=Number(spec.clipIndex);if(ci>=0&&ci<clips.numItems)return clips[ci];}for(var i=0;i<clips.numItems;i++){var c=clips[i];if(spec.nodeId!==undefined&&String(c.nodeId)===String(spec.nodeId))return c;if(spec.name!==undefined&&String(c.name)===String(spec.name))return c;if(spec.startSeconds!==undefined&&Math.abs(__sec(c.start)-Number(spec.startSeconds))<0.01)return c;}throw new Error("Timeline clip not found");}',
+'function __component(clip,name){var needle=String(name).toLowerCase();for(var i=0;i<clip.components.numItems;i++){var c=clip.components[i];var dn=String(c.displayName||c.matchName||"").toLowerCase();if(dn===needle||dn.indexOf(needle)>=0)return c;}return null;}',
+'function __property(component,name){var needle=String(name).toLowerCase();for(var i=0;i<component.properties.numItems;i++){var p=component.properties[i];var dn=String(p.displayName||p.matchName||"").toLowerCase();if(dn===needle||dn.indexOf(needle)>=0)return p;}return null;}',
+'function __setKey(prop,time,value){if(!prop)throw new Error("Property not found");try{prop.setTimeVarying(true);}catch(_){}var t=__time(time);try{prop.addKey(t);}catch(_){}if(prop.setValueAtKey)prop.setValueAtKey(t,value,true);else if(prop.setValue)prop.setValue(value,true);else throw new Error("Property is not writable");}'
+].join("\n");
+
+function projectManage(params: Record<string, unknown>): Record<string, unknown> {
+  const operation = String(params.operation ?? "");
+  let body = HELPERS;
+  if (operation === "save") {
+    body += 'var ok=app.project.save();return JSON.stringify({success:ok!==false,path:app.project.path||null});';
+  } else if (operation === "saveAs") {
+    const path = requireString(params, "path");
+    body += 'var path=' + js(path) + ';var f=new File(path);if(f.parent&&!f.parent.exists)f.parent.create();var ok=app.project.saveAs(path);return JSON.stringify({success:ok!==false,path:path});';
+  } else if (operation === "import") {
+    const paths = Array.isArray(params.paths) ? params.paths.filter((x): x is string => typeof x === "string" && !!x) : [];
+    if (!paths.length) throw new Error("paths_required");
+    body += 'var paths=' + js(paths) + ';var imported=[];for(var i=0;i<paths.length;i++){var item=__ensureProjectItem(paths[i]);imported.push({name:item.name,nodeId:item.nodeId,path:(item.getMediaPath?item.getMediaPath():paths[i])});}return JSON.stringify({success:true,imported:imported});';
+  } else if (operation === "createBin") {
+    const name = requireString(params, "name");
+    const parent = optionalString(params, "parentBinName");
+    body += 'var parent=app.project.rootItem;';
+    if (parent) body += 'var hit=__projectItemByName(' + js(parent) + ');if(hit)parent=hit;';
+    body += 'if(!parent.createBin)throw new Error("Target does not support createBin");var bin=parent.createBin(' + js(name) + ');return JSON.stringify({success:true,name:bin.name,nodeId:bin.nodeId});';
+  } else if (operation === "activateSequence") {
+    const target = requireString(params, "sequence");
+    body += 'var seq=__sequence(' + js(target) + ');return JSON.stringify({success:true,name:seq.name,sequenceID:seq.sequenceID});';
+  } else if (operation === "createSequence") {
+    const name = requireString(params, "name");
+    const presetPath = requireString(params, "presetPath");
+    body += 'var preset=new File(' + js(presetPath) + ');if(!preset.exists)throw new Error("Sequence preset file not found");if(!app.project.newSequence)throw new Error("Premiere newSequence API unavailable");var seq=app.project.newSequence(' + js(name) + ',preset.fsName);if(!seq)seq=__findSequence(' + js(name) + ');if(!seq)throw new Error("Sequence creation failed");return JSON.stringify({success:true,name:seq.name,sequenceID:seq.sequenceID});';
+  } else {
+    throw new Error("premiere.project.manage operation must be save, saveAs, import, createBin, activateSequence or createSequence");
+  }
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
+function timelineAssemble(params: Record<string, unknown>): Record<string, unknown> {
+  const clips = objectArray(params.clips);
+  if (!clips.length) throw new Error("clips_required");
+  const sequence = optionalString(params, "sequence");
+  const normalized = clips.map((clip, index) => ({
+    path: requireString(clip, "path"),
+    sourceIn: Math.max(0, finiteNumber(clip.sourceIn, 0)),
+    sourceOut: clip.sourceOut === undefined ? undefined : Math.max(0, finiteNumber(clip.sourceOut)),
+    at: clip.at === undefined ? undefined : Math.max(0, finiteNumber(clip.at)),
+    videoTrack: Math.max(0, integer(clip.videoTrack, 0)),
+    audioTrack: Math.max(0, integer(clip.audioTrack, 0)),
+    mode: clip.mode === "overwrite" ? "overwrite" : "insert",
+    linkAudio: clip.linkAudio !== false,
+    label: typeof clip.label === "string" ? clip.label : "clip-" + (index + 1)
+  }));
+  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var specs=' + js(normalized) + ';var cursor=Number(' + js(finiteNumber(params.startAt, 0)) + ');var placed=[];';
+  if (params.clear === true) {
+    body += 'for(var vt=0;vt<seq.videoTracks.numTracks;vt++){var vtr=seq.videoTracks[vt];for(var vi=vtr.clips.numItems-1;vi>=0;vi--){try{vtr.clips[vi].remove(false,true);}catch(_){}}}for(var at=0;at<seq.audioTracks.numTracks;at++){var atr=seq.audioTracks[at];for(var ai=atr.clips.numItems-1;ai>=0;ai--){try{atr.clips[ai].remove(false,true);}catch(_){}}}';
+  }
+  body += 'for(var i=0;i<specs.length;i++){var spec=specs[i];var item=__ensureProjectItem(spec.path);if(spec.sourceOut!==undefined&&spec.sourceOut!==null&&spec.sourceOut<=spec.sourceIn)throw new Error("sourceOut must be > sourceIn for "+spec.label);try{item.setInPoint(spec.sourceIn,4);if(spec.sourceOut!==undefined&&spec.sourceOut!==null)item.setOutPoint(spec.sourceOut,4);}catch(markError){item.setInPoint(spec.sourceIn,1);item.setInPoint(spec.sourceIn,2);if(spec.sourceOut!==undefined&&spec.sourceOut!==null){item.setOutPoint(spec.sourceOut,1);item.setOutPoint(spec.sourceOut,2);}}var atTime=spec.at!==undefined&&spec.at!==null?Number(spec.at):cursor;if(spec.videoTrack>=seq.videoTracks.numTracks)throw new Error("Video track does not exist: "+spec.videoTrack);var vtrack=seq.videoTracks[spec.videoTrack];if(spec.mode==="insert"){if(!vtrack.insertClip)throw new Error("insertClip unavailable on target track");vtrack.insertClip(item,atTime);}else{vtrack.overwriteClip(item,atTime);}var duration=(spec.sourceOut!==undefined&&spec.sourceOut!==null)?(spec.sourceOut-spec.sourceIn):null;if(spec.linkAudio&&seq.audioTracks.numTracks>spec.audioTrack){var atrack=seq.audioTracks[spec.audioTrack];try{if(spec.mode==="insert"&&atrack.insertClip)atrack.insertClip(item,atTime);else atrack.overwriteClip(item,atTime);}catch(audioPlacementError){}}placed.push({label:spec.label,path:spec.path,at:atTime,duration:duration,videoTrack:spec.videoTrack,audioTrack:spec.audioTrack});if(spec.at===undefined||spec.at===null){if(duration===null)throw new Error("Sequential assembly requires sourceOut for every clip or explicit at");cursor+=duration;}}return JSON.stringify({success:true,sequence:seq.name,placed:placed,end:cursor});';
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
+function timelineEdit(params: Record<string, unknown>): Record<string, unknown> {
+  const operation = String(params.operation ?? "");
+  const sequence = optionalString(params, "sequence");
+  const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');';
+  if (operation === "move") {
+    const time = Math.max(0, finiteNumber(params.time));
+    body += 'var clip=__clip(seq,' + js(target) + ');var before=__sec(clip.start);clip.move(' + js(time) + '-before);return JSON.stringify({success:true,operation:"move",before:before,after:__sec(clip.start)});';
+  } else if (operation === "delete") {
+    const ripple = params.ripple === true;
+    body += 'var clip=__clip(seq,' + js(target) + ');var name=clip.name;clip.remove(' + (ripple ? "true" : "false") + ',true);return JSON.stringify({success:true,operation:"delete",name:name,ripple:' + (ripple ? "true" : "false") + '});';
+  } else if (operation === "trim") {
+    const sourceIn = params.sourceIn === undefined ? undefined : Math.max(0, finiteNumber(params.sourceIn));
+    const sourceOut = params.sourceOut === undefined ? undefined : Math.max(0, finiteNumber(params.sourceOut));
+    const duration = params.duration === undefined ? undefined : Math.max(0.001, finiteNumber(params.duration));
+    if (sourceOut !== undefined && duration !== undefined) throw new Error("sourceOut_and_duration_conflict");
+    body += 'var clip=__clip(seq,' + js(target) + ');var before={start:__sec(clip.start),end:__sec(clip.end),inPoint:__sec(clip.inPoint),outPoint:__sec(clip.outPoint)};';
+    if (sourceIn !== undefined) body += 'clip.inPoint=__time(' + js(sourceIn) + ');';
+    if (sourceOut !== undefined) body += 'clip.outPoint=__time(' + js(sourceOut) + ');';
+    if (duration !== undefined) body += 'clip.end=__time(__sec(clip.start)+' + js(duration) + ');';
+    body += 'return JSON.stringify({success:true,operation:"trim",before:before,after:{start:__sec(clip.start),end:__sec(clip.end),inPoint:__sec(clip.inPoint),outPoint:__sec(clip.outPoint)}});';
+  } else if (operation === "setEnabled") {
+    const enabled = params.enabled !== false;
+    body += 'var clip=__clip(seq,' + js(target) + ');clip.disabled=' + (enabled ? "false" : "true") + ';return JSON.stringify({success:true,operation:"setEnabled",enabled:' + (enabled ? "true" : "false") + '});';
+  } else {
+    throw new Error("premiere.timeline.edit operation must be move, delete, trim or setEnabled");
+  }
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
+function motionAnimate(params: Record<string, unknown>): Record<string, unknown> {
+  const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+  const sequence = optionalString(params, "sequence");
+  const keyframes = objectArray(params.keyframes);
+  if (!keyframes.length) throw new Error("keyframes_required");
+  const frames = keyframes.map((frame) => ({ time: Math.max(0, finiteNumber(frame.time)), component: typeof frame.component === "string" ? frame.component : "Motion", property: requireString(frame, "property"), value: frame.value }));
+  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var clip=__clip(seq,' + js(target) + ');var frames=' + js(frames) + ';var changed=[];';
+  body += 'for(var i=0;i<frames.length;i++){var f=frames[i];var comp=__component(clip,f.component);if(!comp)throw new Error("Component not found: "+f.component);var prop=__property(comp,f.property);if(!prop)throw new Error("Property not found: "+f.property);__setKey(prop,f.time,f.value);changed.push({time:f.time,component:f.component,property:f.property});}return JSON.stringify({success:true,changed:changed});';
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
+function audioMix(params: Record<string, unknown>): Record<string, unknown> {
+  const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+  const sequence = optionalString(params, "sequence");
+  const levelDb = params.levelDb === undefined ? undefined : finiteNumber(params.levelDb);
+  const frames = objectArray(params.keyframes).map((frame) => ({ time: Math.max(0, finiteNumber(frame.time)), db: finiteNumber(frame.db) }));
+  if (levelDb === undefined && !frames.length) throw new Error("levelDb_or_keyframes_required");
+  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var clip=__clip(seq,' + js({ ...target, trackType: "audio" }) + ');var comp=__component(clip,"Volume");if(!comp)throw new Error("Volume component not found");var prop=__property(comp,"Level");if(!prop)throw new Error("Volume Level property not found");var OFFSET=15;';
+  if (levelDb !== undefined) body += 'var linear=Math.pow(10,(' + js(levelDb) + '-OFFSET)/20);prop.setValue(linear,true);';
+  body += 'var frames=' + js(frames) + ';for(var i=0;i<frames.length;i++){var linearValue=Math.pow(10,(frames[i].db-OFFSET)/20);__setKey(prop,frames[i].time,linearValue);}return JSON.stringify({success:true,keyframes:frames});';
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
+function exportRender(params: Record<string, unknown>): Record<string, unknown> {
+  const outputPath = requireString(params, "outputPath");
+  const presetPath = requireString(params, "presetPath");
+  const sequence = optionalString(params, "sequence");
+  const startImmediately = params.startImmediately !== false;
+  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var preset=new File(' + js(presetPath) + ');if(!preset.exists)throw new Error("Encoder preset file not found");var outFile=new File(' + js(outputPath) + ');if(outFile.parent&&!outFile.parent.exists)outFile.parent.create();if(!app.encoder||!app.encoder.encodeSequence)throw new Error("Adobe Media Encoder integration unavailable");try{app.encoder.launchEncoder();}catch(_){}var range=app.encoder.ENCODE_ENTIRE;var jobID=app.encoder.encodeSequence(seq,outFile.fsName,preset.fsName,range,1);if(!jobID)throw new Error("encodeSequence returned no job ID");';
+  if (startImmediately) body += 'try{app.encoder.startBatch();}catch(_){}';
+  body += 'return JSON.stringify({success:true,jobID:String(jobID),outputPath:outFile.fsName,presetPath:preset.fsName,started:' + (startImmediately ? "true" : "false") + '});';
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
+export function compilePremiere(capability: string, params: Record<string, unknown>): Record<string, unknown> {
+  if (typeof params.script === "string" && params.script) return params;
+  switch (capability) {
+    case "premiere.project.manage": return projectManage(params);
+    case "premiere.timeline.assemble": return timelineAssemble(params);
+    case "premiere.timeline.edit": return timelineEdit(params);
+    case "premiere.motion.animate": return motionAnimate(params);
+    case "premiere.audio.mix": return audioMix(params);
+    case "premiere.export.render": return exportRender(params);
+    default: return params;
+  }
+}
