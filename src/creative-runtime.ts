@@ -6,6 +6,7 @@ import { indexAssets } from "./assets.js";
 import { getCapability } from "./catalog.js";
 import { editSpecSchema, validateEditSpec, type EditSpec } from "./creative-spec.js";
 import { generateReviewPack, validateMediaOutput } from "./media-review.js";
+import { analyzeReference } from "./reference-analysis.js";
 import type { LocalBridgeBroker } from "./broker.js";
 import { invokeAdobeCapability } from "./invoke.js";
 import type { AdobeApp } from "./types.js";
@@ -98,6 +99,19 @@ export class CreativeRuntime {
         maxAssets: typeof params.maxAssets === "number" ? params.maxAssets : 500,
         hash: params.hash === true,
         probe: params.probe !== false
+      });
+    }
+
+    if (capability === "creative.reference.analyze") {
+      if (typeof params.inputPath !== "string" || typeof params.outputDir !== "string") {
+        throw new Error("inputPath_and_outputDir_required");
+      }
+      return analyzeReference(params.inputPath, params.outputDir, {
+        sceneThreshold: typeof params.sceneThreshold === "number" ? params.sceneThreshold : undefined,
+        silenceDb: typeof params.silenceDb === "number" ? params.silenceDb : undefined,
+        silenceMinSeconds: typeof params.silenceMinSeconds === "number" ? params.silenceMinSeconds : undefined,
+        maxFrames: typeof params.maxFrames === "number" ? params.maxFrames : undefined,
+        proxyWidth: typeof params.proxyWidth === "number" ? params.proxyWidth : undefined
       });
     }
 

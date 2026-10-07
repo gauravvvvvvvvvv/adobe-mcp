@@ -19,6 +19,7 @@ const R = (
 
 export const CAPABILITIES: Capability[] = [
   R("creative.assets.index", "Index creative assets", "Scan local source/reference assets and return compact media metadata; ffprobe enriches video/audio when installed.", ["creative","assets","media","reference","index"], "read"),
+  R("creative.reference.analyze", "Analyze a reference video", "Extract scene-cut timing, shot pacing, silence, loudness, sampled frames and compact review artifacts from a local reference video.", ["creative","reference","video","pacing","style","analysis"], "write"),
   R("creative.preview.generate", "Generate review artifacts", "Create a low-resolution video proxy, sampled contact sheet and optional waveform using local ffmpeg so the agent can inspect its own output.", ["creative","review","preview","contact-sheet","waveform"], "write"),
   R("creative.output.validate", "Validate rendered media", "Machine-check an output file with ffprobe against dimensions, FPS, duration, codec, audio and minimum-size expectations.", ["creative","qa","validate","render","output"], "read"),
   R("creative.editspec.validate", "Validate an EditSpec", "Validate the structured creative brief, deliverables, acceptance criteria and semantic operation plan before editing.", ["creative","editspec","plan","validate"], "read"),

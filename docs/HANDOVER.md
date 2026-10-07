@@ -71,18 +71,19 @@ Do not add a separate MCP tool for each editing command unless there is a compel
 Recommended agent behavior:
 
 1. `execute creative.assets.index`
-2. Inspect/generate source/reference review artifacts as needed.
-3. Construct an EditSpec with explicit acceptance criteria and semantic operations.
-4. `execute creative.editspec.validate`
-5. `execute creative.job.create`
-6. `execute creative.job.run`
-7. Render/export.
-8. `execute creative.preview.generate`
-9. `execute creative.output.validate`
-10. Agent actually inspects preview/contact-sheet/waveform.
-11. `execute creative.job.review`
-12. If failed: revise spec with `creative.job.update`, rerun, regenerate artifacts, re-review.
-13. Only a passing review completes the job.
+2. For reference videos, run `creative.reference.analyze` and inspect its proxy/contact sheet/sampled frames; use scene timings as pacing evidence.
+3. Inspect/generate any additional source/reference review artifacts as needed.
+4. Construct an EditSpec with explicit acceptance criteria and semantic operations.
+5. `execute creative.editspec.validate`
+6. `execute creative.job.create`
+7. `execute creative.job.run`
+8. Render/export.
+9. `execute creative.preview.generate`
+10. `execute creative.output.validate`
+11. Agent actually inspects preview/contact-sheet/waveform.
+12. `execute creative.job.review`
+13. If failed: revise spec with `creative.job.update`, rerun, regenerate artifacts, re-review.
+14. Only a passing review completes the job.
 
 ## EditSpec principles
 

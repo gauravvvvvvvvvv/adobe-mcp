@@ -8,7 +8,13 @@ The creative-job layer is what lets Codex/Claude treat Adobe MCP as one autonomo
    - Scan source footage, images, audio, logos and references.
    - ffprobe metadata is added for video/audio when ffprobe is installed.
 
-2. Build an **EditSpec**
+2. `creative.reference.analyze` for each important reference video
+   - scene-cut timestamps and shot-length statistics
+   - silence regions and loudness when audio exists
+   - low-resolution proxy, contact sheet, waveform and sampled frames
+   - use timing as pacing evidence and visual artifacts as style evidence
+
+3. Build an **EditSpec**
    - Original prompt.
    - Source/reference assets.
    - Creative intent.
@@ -17,22 +23,22 @@ The creative-job layer is what lets Codex/Claude treat Adobe MCP as one autonomo
    - Ordered semantic operations.
    - Review requirements.
 
-3. `creative.editspec.validate`
+4. `creative.editspec.validate`
 
-4. `creative.job.create`
+5. `creative.job.create`
    - Stores the spec under `~/.adobe-mcp/jobs/<job-id>.json`.
 
-5. `creative.job.run`
+6. `creative.job.run`
    - Executes semantic operations against connected Adobe adapters.
    - Successful operations are remembered, so a retry can skip them.
 
-6. Export a preview/final file and call `creative.preview.generate`.
+7. Export a preview/final file and call `creative.preview.generate`.
    - Low-resolution H.264 review proxy.
    - Sampled contact sheet spanning the video.
    - Audio waveform when an audio stream exists.
    - These are generated locally with ffmpeg.
 
-7. Call `creative.output.validate`.
+8. Call `creative.output.validate`.
    - File existence/size.
    - Decodable media streams.
    - Dimensions.
@@ -41,24 +47,24 @@ The creative-job layer is what lets Codex/Claude treat Adobe MCP as one autonomo
    - Codec.
    - Required audio.
 
-8. The **calling agent must actually inspect the review artifacts**.
+9. The **calling agent must actually inspect the review artifacts**.
    - Use its own vision/audio/file capabilities.
    - Adobe MCP never treats an API return or successful render as proof of visual quality.
 
-9. `creative.job.review`
+10. `creative.job.review`
    - Record criterion-by-criterion verdicts and reviewed artifact paths.
    - A passing review is rejected unless every required acceptance criterion is explicitly passed.
    - If visual review is required, a pass is rejected without artifacts.
    - A failing review marks the job `needs_repair`.
 
-10. Repair
+11. Repair
    - Generate a revised EditSpec.
    - `creative.job.update`.
    - Run again.
    - Generate new review artifacts.
    - Review again.
 
-11. A passing review marks the job `completed`.
+12. A passing review marks the job `completed`.
 
 ## Why the model remains the creative brain
 

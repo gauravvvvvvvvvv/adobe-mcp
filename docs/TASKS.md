@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Premiere professional finishing operations after `350e20b2`.
+Last updated commit target: reference-video intelligence after `1522457c`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -28,8 +28,8 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] `creative.job.create/get/update/run/review`
 - [x] `creative.preview.generate`
 - [x] `creative.output.validate`
-- [ ] Asset-analysis packs: scene cuts, dense keyframes, silence map, audio loudness and clip fingerprints.
-- [ ] Reference-video analysis manifest suitable for model inspection.
+- [~] Asset/reference analysis now includes scene cuts, sampled frames, silence map and loudness; perceptual fingerprints and per-source bulk analysis remain pending.
+- [x] Reference-video analysis manifest with shot pacing statistics, proxy/contact sheet/waveform and sampled-frame paths.
 - [ ] Recipe library for common professional edit/motion/graphics workflows.
 - [ ] Checkpoint/rollback metadata for destructive multi-step edits.
 - [ ] Job artifact manifest with project, preview, final and review revisions.
