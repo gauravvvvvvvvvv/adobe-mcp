@@ -10,27 +10,49 @@ const HELPERS = [
 function compositionManage(params: Record<string, unknown>): Record<string, unknown> {
   const operation = String(params.operation ?? "");
   let body = HELPERS;
+
   if (operation === "create") {
     const name = requireString(params, "name");
     const width = Math.max(1, integer(params.width, 1920));
     const height = Math.max(1, integer(params.height, 1080));
+    const pixelAspect = Math.max(0.01, finiteNumber(params.pixelAspect, 1));
     const duration = Math.max(0.01, finiteNumber(params.duration, 10));
     const frameRate = Math.max(1, finiteNumber(params.frameRate, 30));
-    body += 'app.beginUndoGroup("Adobe MCP: create composition");var c=app.project.items.addComp(' + js(name) + ',' + width + ',' + height + ',1,' + duration + ',' + frameRate + ');app.endUndoGroup();return JSON.stringify({success:true,id:c.id,name:c.name,width:c.width,height:c.height,duration:c.duration,frameRate:c.frameRate});';
+    body += 'app.beginUndoGroup("Adobe MCP: create composition");var c=app.project.items.addComp(' + js(name) + ',' + width + ',' + height + ',' + pixelAspect + ',' + duration + ',' + frameRate + ');';
+    if (Array.isArray(params.backgroundColor)) body += 'c.bgColor=' + js(params.backgroundColor) + ';';
+    if (params.motionBlur !== undefined) body += 'c.motionBlur=' + (params.motionBlur === true ? "true" : "false") + ';';
+    body += 'app.endUndoGroup();return JSON.stringify({success:true,id:c.id,name:c.name,width:c.width,height:c.height,pixelAspect:c.pixelAspect,duration:c.duration,frameRate:c.frameRate});';
+  } else if (operation === "configure") {
+    const name = optionalString(params, "composition");
+    body += 'var c=__comp(' + (name ? js(name) : "null") + ');app.beginUndoGroup("Adobe MCP: configure composition");';
+    if (optionalString(params, "name")) body += 'c.name=' + js(optionalString(params, "name")) + ';';
+    if (params.width !== undefined) body += 'c.width=' + Math.max(1, integer(params.width)) + ';';
+    if (params.height !== undefined) body += 'c.height=' + Math.max(1, integer(params.height)) + ';';
+    if (params.pixelAspect !== undefined) body += 'c.pixelAspect=' + Math.max(0.01, finiteNumber(params.pixelAspect)) + ';';
+    if (params.duration !== undefined) body += 'c.duration=' + Math.max(0.01, finiteNumber(params.duration)) + ';';
+    if (params.frameRate !== undefined) body += 'c.frameRate=' + Math.max(1, finiteNumber(params.frameRate)) + ';';
+    if (Array.isArray(params.backgroundColor)) body += 'c.bgColor=' + js(params.backgroundColor) + ';';
+    if (params.displayStartTime !== undefined) body += 'c.displayStartTime=' + Math.max(0, finiteNumber(params.displayStartTime)) + ';';
+    if (params.workAreaStart !== undefined) body += 'c.workAreaStart=' + Math.max(0, finiteNumber(params.workAreaStart)) + ';';
+    if (params.workAreaDuration !== undefined) body += 'c.workAreaDuration=' + Math.max(0.01, finiteNumber(params.workAreaDuration)) + ';';
+    if (params.motionBlur !== undefined) body += 'c.motionBlur=' + (params.motionBlur === true ? "true" : "false") + ';';
+    if (params.shutterAngle !== undefined) body += 'c.shutterAngle=' + Math.max(0, Math.min(720, finiteNumber(params.shutterAngle))) + ';';
+    if (params.shutterPhase !== undefined) body += 'c.shutterPhase=' + Math.max(-360, Math.min(360, finiteNumber(params.shutterPhase))) + ';';
+    body += 'app.endUndoGroup();return JSON.stringify({success:true,id:c.id,name:c.name,width:c.width,height:c.height,pixelAspect:c.pixelAspect,duration:c.duration,frameRate:c.frameRate,workAreaStart:c.workAreaStart,workAreaDuration:c.workAreaDuration,motionBlur:c.motionBlur});';
   } else if (operation === "duplicate") {
     const name = optionalString(params, "composition");
     const newName = optionalString(params, "name");
     body += 'var c=__comp(' + (name ? js(name) : "null") + ');app.beginUndoGroup("Adobe MCP: duplicate composition");var d=c.duplicate();';
     if (newName) body += 'd.name=' + js(newName) + ';';
-    body += 'app.endUndoGroup();return JSON.stringify({success:true,id:d.id,name:d.name});';
+    body += 'app.endUndoGroup();return JSON.stringify({success:true,id:d.id,name:d.name,width:d.width,height:d.height,duration:d.duration,frameRate:d.frameRate});';
   } else if (operation === "precompose") {
-    const comp = optionalString(params, "composition");
+    const compName = optionalString(params, "composition");
     const indices = Array.isArray(params.layerIndices) ? params.layerIndices.map((x) => integer(x)).filter((x) => x > 0) : [];
     if (!indices.length) throw new Error("layerIndices_required");
     const name = requireString(params, "name");
-    body += 'var c=__comp(' + (comp ? js(comp) : "null") + ');app.beginUndoGroup("Adobe MCP: precompose");var p=c.layers.precompose(' + js(indices) + ',' + js(name) + ',' + (params.moveAllAttributes !== false ? "true" : "false") + ');app.endUndoGroup();return JSON.stringify({success:true,name:p.name,id:p.id});';
+    body += 'var c=__comp(' + (compName ? js(compName) : "null") + ');app.beginUndoGroup("Adobe MCP: precompose");var p=c.layers.precompose(' + js(indices) + ',' + js(name) + ',' + (params.moveAllAttributes !== false ? "true" : "false") + ');app.endUndoGroup();return JSON.stringify({success:true,name:p.name,id:p.id});';
   } else {
-    throw new Error("after-effects.composition.manage operation must be create, duplicate or precompose");
+    throw new Error("after-effects.composition.manage operation must be create, configure, duplicate or precompose");
   }
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
@@ -86,16 +108,51 @@ function propertiesAnimate(params: Record<string, unknown>): Record<string, unkn
   const comp = optionalString(params, "composition");
   const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
   const keyframes = objectArray(params.keyframes);
-  if (!keyframes.length) throw new Error("keyframes_required");
+  const expression = params.expression && typeof params.expression === "object" && !Array.isArray(params.expression)
+    ? params.expression as Record<string, unknown>
+    : undefined;
+  if (!keyframes.length && !expression) throw new Error("keyframes_or_expression_required");
+
   const frames = keyframes.map((frame) => ({
     time: Math.max(0, finiteNumber(frame.time)),
     path: Array.isArray(frame.path) ? frame.path.map(String) : [requireString(frame, "property")],
     value: frame.value,
     easeInfluence: frame.easeInfluence === undefined ? undefined : finiteNumber(frame.easeInfluence),
-    easeSpeed: frame.easeSpeed === undefined ? undefined : finiteNumber(frame.easeSpeed)
+    easeSpeed: frame.easeSpeed === undefined ? undefined : finiteNumber(frame.easeSpeed),
+    interpolation: typeof frame.interpolation === "string" ? frame.interpolation.toLowerCase() : undefined,
+    inInterpolation: typeof frame.inInterpolation === "string" ? frame.inInterpolation.toLowerCase() : undefined,
+    outInterpolation: typeof frame.outInterpolation === "string" ? frame.outInterpolation.toLowerCase() : undefined,
+    roving: frame.roving === true,
+    temporalContinuous: frame.temporalContinuous === true,
+    temporalAutoBezier: frame.temporalAutoBezier === true,
+    spatialContinuous: frame.spatialContinuous === true,
+    spatialAutoBezier: frame.spatialAutoBezier === true
   }));
-  let body = HELPERS + 'var c=__comp(' + (comp ? js(comp) : "null") + ');var l=__layer(c,' + js(target) + ');var frames=' + js(frames) + ';var changed=[];app.beginUndoGroup("Adobe MCP: animate");';
-  body += 'for(var i=0;i<frames.length;i++){var f=frames[i];var p=__prop(l,f.path);p.setValueAtTime(f.time,f.value);var key=p.nearestKeyIndex(f.time);if(f.easeInfluence!==undefined)__ease(p,key,f.easeInfluence,f.easeSpeed);changed.push({time:f.time,path:f.path});}';
+
+  const expressionSpec = expression ? {
+    path: Array.isArray(expression.path) ? expression.path.map(String) : [requireString(expression, "property")],
+    value: requireString(expression, "value"),
+    enabled: expression.enabled !== false
+  } : undefined;
+
+  let body = HELPERS +
+    'function __interp(name){var n=String(name||"").toLowerCase();if(n==="hold")return KeyframeInterpolationType.HOLD;if(n==="linear")return KeyframeInterpolationType.LINEAR;return KeyframeInterpolationType.BEZIER;}' +
+    'var c=__comp(' + (comp ? js(comp) : "null") + ');var l=__layer(c,' + js(target) + ');var frames=' + js(frames) + ';var changed=[];app.beginUndoGroup("Adobe MCP: animate");';
+
+  body += 'for(var i=0;i<frames.length;i++){var f=frames[i];var p=__prop(l,f.path);p.setValueAtTime(f.time,f.value);var key=p.nearestKeyIndex(f.time);';
+  body += 'if(f.easeInfluence!==undefined)__ease(p,key,f.easeInfluence,f.easeSpeed);';
+  body += 'if(f.interpolation||f.inInterpolation||f.outInterpolation){try{var inType=__interp(f.inInterpolation||f.interpolation);var outType=__interp(f.outInterpolation||f.interpolation);p.setInterpolationTypeAtKey(key,inType,outType);}catch(_){}}';
+  body += 'if(f.roving){try{p.setRovingAtKey(key,true);}catch(_){}}';
+  body += 'if(f.temporalContinuous){try{p.setTemporalContinuousAtKey(key,true);}catch(_){}}';
+  body += 'if(f.temporalAutoBezier){try{p.setTemporalAutoBezierAtKey(key,true);}catch(_){}}';
+  body += 'if(f.spatialContinuous){try{p.setSpatialContinuousAtKey(key,true);}catch(_){}}';
+  body += 'if(f.spatialAutoBezier){try{p.setSpatialAutoBezierAtKey(key,true);}catch(_){}}';
+  body += 'changed.push({time:f.time,path:f.path,interpolation:f.interpolation||null,roving:f.roving});}';
+
+  if (expressionSpec) {
+    body += 'var expressionSpec=' + js(expressionSpec) + ';var ep=__prop(l,expressionSpec.path);if(!ep.canSetExpression)throw new Error("Property cannot accept expressions");ep.expression=expressionSpec.value;ep.expressionEnabled=expressionSpec.enabled;changed.push({path:expressionSpec.path,expression:true,enabled:expressionSpec.enabled});';
+  }
+
   body += 'app.endUndoGroup();return JSON.stringify({success:true,layer:l.name,changed:changed});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
@@ -304,18 +361,47 @@ function threeDScene(params: Record<string, unknown>): Record<string, unknown> {
 }
 
 function renderQueue(params: Record<string, unknown>): Record<string, unknown> {
+  const operation = String(params.operation ?? "add");
   const comp = optionalString(params, "composition");
-  const outputPath = requireString(params, "outputPath");
-  const renderTemplate = optionalString(params, "renderSettingsTemplate");
-  const outputTemplate = optionalString(params, "outputModuleTemplate");
-  const start = params.start !== false;
-  let body = HELPERS + 'var c=__comp(' + (comp ? js(comp) : "null") + ');var rq=app.project.renderQueue;var item=rq.items.add(c);';
-  if (renderTemplate) body += 'item.applyTemplate(' + js(renderTemplate) + ');';
-  body += 'var om=item.outputModule(1);';
-  if (outputTemplate) body += 'om.applyTemplate(' + js(outputTemplate) + ');';
-  body += 'var f=new File(' + js(outputPath) + ');if(f.parent&&!f.parent.exists)f.parent.create();om.file=f;';
-  if (start) body += 'rq.render();';
-  body += 'return JSON.stringify({success:true,composition:c.name,outputPath:f.fsName,started:' + (start ? "true" : "false") + '});';
+  let body = HELPERS + 'var rq=app.project.renderQueue;';
+
+  if (operation === "inspect") {
+    body += 'var items=[];for(var i=1;i<=rq.numItems;i++){var item=rq.item(i),om=item.outputModule(1),path=null;try{path=om.file?om.file.fsName:null;}catch(_){}items.push({index:i,composition:item.comp?item.comp.name:null,status:String(item.status),render:item.render,outputPath:path,elapsedSeconds:item.elapsedSeconds||0});}return JSON.stringify({success:true,rendering:rq.rendering,numItems:rq.numItems,items:items});';
+  } else if (operation === "add") {
+    const outputPath = requireString(params, "outputPath");
+    const renderTemplate = optionalString(params, "renderSettingsTemplate");
+    const outputTemplate = optionalString(params, "outputModuleTemplate");
+    const start = params.start !== false;
+    body += 'var c=__comp(' + (comp ? js(comp) : "null") + ');var item=rq.items.add(c);';
+    if (renderTemplate) body += 'item.applyTemplate(' + js(renderTemplate) + ');';
+    body += 'var om=item.outputModule(1);';
+    if (outputTemplate) body += 'om.applyTemplate(' + js(outputTemplate) + ');';
+    body += 'var f=new File(' + js(outputPath) + ');if(f.parent&&!f.parent.exists)f.parent.create();om.file=f;';
+    if (params.render !== undefined) body += 'item.render=' + (params.render !== false ? "true" : "false") + ';';
+    if (start) body += 'rq.render();';
+    body += 'return JSON.stringify({success:true,operation:"add",index:item.index,composition:c.name,outputPath:f.fsName,started:' + (start ? "true" : "false") + '});';
+  } else if (operation === "render") {
+    body += 'rq.render();return JSON.stringify({success:true,operation:"render",rendering:rq.rendering});';
+  } else if (operation === "pause") {
+    const paused = params.paused !== false;
+    body += 'if(!rq.pauseRendering)throw new Error("RenderQueue pauseRendering API unavailable");rq.pauseRendering(' + (paused ? "true" : "false") + ');return JSON.stringify({success:true,operation:"pause",paused:' + (paused ? "true" : "false") + ',rendering:rq.rendering});';
+  } else if (operation === "stop") {
+    body += 'if(!rq.stopRendering)throw new Error("RenderQueue stopRendering API unavailable");rq.stopRendering();return JSON.stringify({success:true,operation:"stop",rendering:rq.rendering});';
+  } else if (operation === "remove") {
+    const index = Math.max(1, integer(params.index, 1));
+    body += 'if(' + index + '>rq.numItems)throw new Error("Render queue index out of range");var item=rq.item(' + index + ');var compName=item.comp?item.comp.name:null;item.remove();return JSON.stringify({success:true,operation:"remove",index:' + index + ',composition:compName,numItems:rq.numItems});';
+  } else if (operation === "set") {
+    const index = Math.max(1, integer(params.index, 1));
+    body += 'if(' + index + '>rq.numItems)throw new Error("Render queue index out of range");var item=rq.item(' + index + ');';
+    if (params.render !== undefined) body += 'item.render=' + (params.render !== false ? "true" : "false") + ';';
+    if (typeof params.outputPath === "string") {
+      body += 'var om=item.outputModule(1);var f=new File(' + js(params.outputPath) + ');if(f.parent&&!f.parent.exists)f.parent.create();om.file=f;';
+    }
+    body += 'return JSON.stringify({success:true,operation:"set",index:' + index + ',render:item.render,status:String(item.status)});';
+  } else {
+    throw new Error("after-effects.render.queue operation must be inspect, add, render, pause, stop, remove or set");
+  }
+
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 

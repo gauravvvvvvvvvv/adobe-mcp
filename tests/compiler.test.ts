@@ -163,6 +163,66 @@ test("After Effects compilers parse and use undo groups", () => {
   assert.match(animation, /setValueAtTime/);
 });
 
+test("After Effects composition configuration rich keyframes expressions and render controls compile", () => {
+  const configure = scriptFor("after-effects.composition.manage", {
+    operation: "configure",
+    composition: "Main",
+    width: 1080,
+    height: 1920,
+    duration: 12,
+    frameRate: 30,
+    workAreaStart: 1,
+    workAreaDuration: 10,
+    motionBlur: true,
+    shutterAngle: 180
+  });
+  parses(configure);
+  assert.match(configure, /c\.width=1080/);
+  assert.match(configure, /c\.workAreaDuration=10/);
+  assert.match(configure, /c\.shutterAngle=180/);
+
+  const animation = scriptFor("after-effects.properties.animate", {
+    target: { name: "Card" },
+    keyframes: [
+      {
+        time: 0,
+        property: "ADBE Opacity",
+        value: 0,
+        interpolation: "hold"
+      },
+      {
+        time: 1,
+        property: "ADBE Opacity",
+        value: 100,
+        interpolation: "bezier",
+        temporalAutoBezier: true
+      }
+    ],
+    expression: {
+      path: ["ADBE Transform Group", "ADBE Rotate Z"],
+      value: "wiggle(1,5)"
+    }
+  });
+  parses(animation);
+  assert.match(animation, /KeyframeInterpolationType\.HOLD/);
+  assert.match(animation, /setInterpolationTypeAtKey/);
+  assert.match(animation, /canSetExpression/);
+  assert.match(animation, /expressionEnabled/);
+
+  const inspect = scriptFor("after-effects.render.queue", { operation: "inspect" });
+  parses(inspect);
+  assert.match(inspect, /rq\.numItems/);
+  assert.match(inspect, /elapsedSeconds/);
+
+  const pause = scriptFor("after-effects.render.queue", { operation: "pause", paused: true });
+  parses(pause);
+  assert.match(pause, /pauseRendering\(true\)/);
+
+  const stop = scriptFor("after-effects.render.queue", { operation: "stop" });
+  parses(stop);
+  assert.match(stop, /stopRendering/);
+});
+
 test("After Effects native text animators Bezier paths and blend modes compile", () => {
   const text = scriptFor("after-effects.text.animate", {
     text: "KINETIC",

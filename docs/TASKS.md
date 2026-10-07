@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: self-contained social-cutdown and parallax recipes after `80785820`.
+Last updated commit target: complete AE composition/animation/render controls after `0c142d38`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -59,15 +59,15 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 ## After Effects
 
 - [x] CEP host connection and compact context inspection.
-- [~] Typed composition create/duplicate/precompose.
+- [x] Typed composition create/configure/duplicate/precompose including dimensions, pixel aspect, duration/frame rate, work area, background/motion-blur settings.
 - [x] Typed text/solid/null/shape/camera/light/footage import plus duplicate/remove, parent and move-before/move-after ordering.
-- [~] Generic property-path keyframes and temporal easing.
+- [x] Generic property-path keyframes with temporal easing, interpolation modes, roving/auto-Bezier/continuous controls and expressions.
 - [x] Text-layer creation with transform intro animation plus native text animator properties and range-selector keyframes.
 - [x] Rectangle/ellipse/arbitrary Bezier shape layers with fills, strokes, trim paths and repeaters.
 - [x] Typed masks with shape/feather/opacity/expansion, set/remove track mattes and explicit layer blend-mode control.
 - [x] Typed effect add/remove, effect parameter writes and animation-preset (.ffx) application.
 - [x] Typed 3D enable/position/orientation/rotation/parent/motion-blur plus camera/light creation and basic options.
-- [~] Render queue item/output path/templates/start controls.
+- [x] Render queue inspect/add/set/remove plus output path/templates and render/pause/resume/stop controls.
 - [x] Kinetic typography recipe.
 - [x] Logo reveal recipe.
 - [x] Parallax recipe explicitly enables/configures 3D depth layers, creates the camera and includes an eased camera-position move.
