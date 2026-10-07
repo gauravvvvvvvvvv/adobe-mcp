@@ -218,7 +218,7 @@ const report = {
     "CEP covers Premiere Pro, After Effects, Illustrator, InDesign, Animate, Audition and Bridge.",
     "Photoshop and Media Encoder use UXP adapters.",
     "Lightroom Classic uses a Lua plugin; Acrobat Pro uses a trusted folder-level JavaScript; Substance 3D Painter uses a Python startup plugin.",
-    "Discovery only reports local installations. Adobe MCP never bypasses licensing or activation."
+    "Discovery only reports local installations. Set ADOBE_MCP_APP_DIRS or ADOBE_MCP_APP_PATHS for nonstandard locations. Adobe MCP never bypasses licensing or activation."
   ]
 };
 

@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: validation-discovered regression test repairs after `e20ce946`.
+Last updated commit target: custom/nonstandard local Adobe install discovery after `783e0696`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -120,6 +120,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Installation / operations
 
+- [x] Bounded custom/nonstandard Adobe install discovery via standard roots plus `ADOBE_MCP_APP_DIRS` and exact `ADOBE_MCP_APP_PATHS`, with deduplication.
 - [x] `npm run release:check` validates adapter sources, UXP manifests, package/no-CI contract and rejects any unexpected implementation partials while reporting external release gates.
 - [x] Windows CEP manual install/uninstall.
 - [x] No GitHub Actions / CI.

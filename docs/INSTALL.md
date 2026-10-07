@@ -130,6 +130,24 @@ Open the desired Adobe application. The host bridge connects to `127.0.0.1:38470
 
 Reference analysis, proxies, contact sheets, waveform generation and deterministic video/audio validation require both `ffmpeg` and `ffprobe` on PATH.
 
+## Custom / nonstandard application locations
+
+Host adapter installation is user-level and does not depend on Creative Cloud's default application directory. `doctor` scans standard locations only for diagnostics.
+
+For additional parent folders:
+
+```text
+ADOBE_MCP_APP_DIRS=D:\\CreativeApps;E:\\Adobe
+```
+
+For exact application folders or executables outside normal roots:
+
+```text
+ADOBE_MCP_APP_PATHS=D:\\PortableApps\\Adobe Premiere Pro;E:\\Tools\\Photoshop
+```
+
+Use the platform path delimiter (`;` on Windows, `:` on macOS/Linux). These variables only improve local install discovery; they do not alter licensing or activation.
+
 ## Licensing
 
 Adobe MCP automates runnable local applications through their available automation surfaces. It does not activate, crack, patch or bypass Adobe licensing.
