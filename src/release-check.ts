@@ -24,12 +24,14 @@ checks.package = {
   prepack: packageJson.scripts?.prepack,
   noCiByContract: true
 };
-if (packageJson.scripts?.prepack !== "npm run check") errors.push("package.prepack_must_run_check");
+if (packageJson.scripts?.prepack !== "npm run check && npm run release:check") errors.push("package.prepack_must_run_check_and_release_check");
 
 const requiredFiles = [
   "src/index.ts",
   "src/broker.ts",
   "src/creative-runtime.ts",
+  "src/capability-guides.ts",
+  "src/version.ts",
   "src/asset-analysis.ts",
   "src/limits.ts",
   "src/acceptance-runner.ts",
@@ -80,6 +82,18 @@ async function validateUxp(relative: string, expectedHost: string) {
 
 checks.photoshopUxp = await validateUxp("adapters/photoshop-uxp/manifest.json", "PS");
 checks.mediaEncoderUxp = await validateUxp("adapters/media-encoder-uxp/manifest.json", "ame");
+
+const versionSource = await readFile(join(root, "src", "version.ts"), "utf8");
+const versionMatch = /ADOBE_MCP_VERSION\s*=\s*"([^"]+)"/.exec(versionSource);
+checks.versionConsistency = {
+  package: packageJson.version,
+  runtime: versionMatch?.[1] ?? null,
+  photoshop: (checks.photoshopUxp as { version?: string }).version,
+  mediaEncoder: (checks.mediaEncoderUxp as { version?: string }).version
+};
+if (!versionMatch || versionMatch[1] !== packageJson.version) errors.push("runtime_version_mismatch");
+if ((checks.photoshopUxp as { version?: string }).version !== packageJson.version) errors.push("photoshop_manifest_version_mismatch");
+if ((checks.mediaEncoderUxp as { version?: string }).version !== packageJson.version) errors.push("media_encoder_manifest_version_mismatch");
 
 const githubDir = join(root, ".github");
 if (await exists(githubDir)) {
@@ -139,7 +153,7 @@ const report = {
     "npm run doctor",
     "complete real-host acceptance",
     "package/test UXP .ccx files with Adobe UXP Developer Tool",
-    "npm pack (prepack runs npm run check)"
+    "npm pack (prepack runs npm run check && npm run release:check)"
   ]
 };
 

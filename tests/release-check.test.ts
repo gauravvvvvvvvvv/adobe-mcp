@@ -10,4 +10,7 @@ test("manual release gate enforces repo contract and external gates", async () =
   assert.match(source, /adapters\/media-encoder-uxp\/manifest\.json/);
   assert.match(source, /real-host-premiere-acceptance/);
   assert.match(source, /uxp-ccx-packaging/);
+  assert.match(source, /runtime_version_mismatch/);
+  assert.match(source, /manifest_version_mismatch/);
+  assert.match(source, /capability-guides\.ts/);
 });

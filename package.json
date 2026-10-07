@@ -34,7 +34,7 @@
     "photoshop:dev:macos": "bash scripts/enable-photoshop-dev-macos.sh",
     "setup:codex": "tsx src/setup-client.ts --client codex",
     "setup:claude": "tsx src/setup-client.ts --client claude",
-    "prepack": "npm run check",
+    "prepack": "npm run check && npm run release:check",
     "accept:premiere": "tsx src/acceptance-runner.ts",
     "release:check": "tsx src/release-check.ts"
   },

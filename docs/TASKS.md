@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: on-demand capability parameter guides after `ee085cff`.
+Last updated commit target: enforced prepack readiness/version consistency after `71f87bf6`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -125,7 +125,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] macOS CEP install/uninstall scripts.
 - [x] `doctor` verifies Node, ffmpeg/ffprobe, bridge/connected apps, every shipped adapter source, CEP/Lightroom/Acrobat/Substance installs and shared UXP developer mode; UXP host loading itself remains intentionally verified inside Adobe UXP Developer Tool.
 - [x] `adobe-mcp-setup --client codex|claude` plus npm convenience scripts use each client CLI and avoid silent overwrite without force.
-- [x] npm package `files` includes `dist`, all adapters, docs and scripts; `prepack` runs the manual local check suite.
+- [x] npm package `files` includes `dist`, all adapters, docs and scripts; `prepack` enforces both the code suite and release-readiness/version-consistency gate.
 
 ## Tests and quality
 

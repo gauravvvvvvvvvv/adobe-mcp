@@ -66,7 +66,7 @@ Do not hand-roll a ZIP and label it a supported CCX.
 npm pack
 ```
 
-`prepack` runs `npm run check` automatically. Inspect the tarball contents before publishing.
+`prepack` runs both `npm run check` and `npm run release:check` automatically. Inspect the tarball contents before publishing.
 
 ## Release evidence
 
