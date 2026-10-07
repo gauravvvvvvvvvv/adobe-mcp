@@ -27,6 +27,21 @@ test("Premiere project import compiles paths as data, not source", () => {
   assert.equal(script.includes('var paths=["C:\\media\\x"; app.project.saveAs'), false);
 });
 
+test("Premiere project lifecycle compiles open new and close operations", () => {
+  const open = scriptFor("premiere.project.manage", { operation: "open", path: "C:\\work\\copy.prproj" });
+  parses(open);
+  assert.match(open, /app\.openDocument/);
+
+  const create = scriptFor("premiere.project.manage", { operation: "new", path: "C:\\work\\scratch.prproj" });
+  parses(create);
+  assert.match(create, /app\.newProject/);
+
+  const close = scriptFor("premiere.project.manage", { operation: "close", save: true });
+  parses(close);
+  assert.match(close, /project\.save/);
+  assert.match(close, /closeDocument/);
+});
+
 test("Premiere assembly and edit compile into ExtendScript", () => {
   const assembly = scriptFor("premiere.timeline.assemble", {
     clips: [{ path: "C:\\media\\a.mp4", sourceIn: 1, sourceOut: 3.5, videoTrack: 0, audioTrack: 0 }]

@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: full multi-host doctor/install verification after `886c713f`.
+Last updated commit target: Premiere project lifecycle semantics after `4b4e23f8`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -38,7 +38,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 ## Premiere Pro
 
 - [x] CEP host connection and compact context inspection.
-- [~] Typed project operations: save/saveAs, import media, bins, sequence activation/creation.
+- [x] Typed project lifecycle and organization: open/new/close/save/saveAs, import media, bins and sequence activation/creation.
 - [~] Typed timeline assembly from explicit source ranges, tracks and placement times.
 - [~] Typed insert/overwrite assembly plus move/trim/delete/ripple-delete/set-enabled and QE razor (single/all tracks); lift/extract remain pending because Premiere exposes no stable documented direct API.
 - [~] QE speed/reverse/maintain-pitch/ripple primitive added; animated time-remapping remains pending.

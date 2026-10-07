@@ -30,6 +30,19 @@ function projectManage(params: Record<string, unknown>): Record<string, unknown>
   } else if (operation === "saveAs") {
     const path = requireString(params, "path");
     body += 'var path=' + js(path) + ';var f=new File(path);if(f.parent&&!f.parent.exists)f.parent.create();var ok=app.project.saveAs(path);return JSON.stringify({success:ok!==false,path:path});';
+  } else if (operation === "open") {
+    const path = requireString(params, "path");
+    const bypassConversionDialog = params.bypassConversionDialog !== false;
+    const bypassLocateFile = params.bypassLocateFile === true;
+    const bypassWarningDialog = params.bypassWarningDialog === true;
+    const hideFromMRUList = params.hideFromMRUList === true;
+    body += 'var f=new File(' + js(path) + ');if(!f.exists)throw new Error("Premiere project not found");if(!app.openDocument)throw new Error("Premiere openDocument API unavailable");var ok=app.openDocument(f.fsName,' + (bypassConversionDialog?"true":"false") + ',' + (bypassLocateFile?"true":"false") + ',' + (bypassWarningDialog?"true":"false") + ',' + (hideFromMRUList?"true":"false") + ');if(ok===false)throw new Error("Premiere refused to open project");return JSON.stringify({success:true,path:app.project.path||f.fsName,name:app.project.name||f.name});';
+  } else if (operation === "new") {
+    const path = requireString(params, "path");
+    body += 'var f=new File(' + js(path) + ');if(f.parent&&!f.parent.exists)f.parent.create();if(!app.newProject)throw new Error("Premiere newProject API unavailable");var ok=app.newProject(f.fsName);if(ok===false)throw new Error("Premiere newProject failed");return JSON.stringify({success:true,path:app.project.path||f.fsName,name:app.project.name||f.name});';
+  } else if (operation === "close") {
+    const save = params.save !== false;
+    body += (save ? 'try{app.project.save();}catch(saveError){throw new Error("Could not save project before close: "+saveError);}' : '') + 'var path=app.project.path||null;var name=app.project.name||null;if(!app.project.closeDocument)throw new Error("Premiere closeDocument API unavailable");var result=app.project.closeDocument();return JSON.stringify({success:result===0||result===true||result===undefined,path:path,name:name,saved:' + (save?"true":"false") + ',apiResult:String(result)});';
   } else if (operation === "import") {
     const paths = Array.isArray(params.paths) ? params.paths.filter((x): x is string => typeof x === "string" && !!x) : [];
     if (!paths.length) throw new Error("paths_required");
@@ -48,7 +61,7 @@ function projectManage(params: Record<string, unknown>): Record<string, unknown>
     const presetPath = requireString(params, "presetPath");
     body += 'var preset=new File(' + js(presetPath) + ');if(!preset.exists)throw new Error("Sequence preset file not found");if(!app.project.newSequence)throw new Error("Premiere newSequence API unavailable");var seq=app.project.newSequence(' + js(name) + ',preset.fsName);if(!seq)seq=__findSequence(' + js(name) + ');if(!seq)throw new Error("Sequence creation failed");return JSON.stringify({success:true,name:seq.name,sequenceID:seq.sequenceID});';
   } else {
-    throw new Error("premiere.project.manage operation must be save, saveAs, import, createBin, activateSequence or createSequence");
+    throw new Error("premiere.project.manage operation must be open, new, close, save, saveAs, import, createBin, activateSequence or createSequence");
   }
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
