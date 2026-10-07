@@ -71,3 +71,66 @@ test("broker accepts host reconnect without MCP restart", async () => {
     await broker.close();
   }
 });
+
+test("broker supports reconnecting HTTP-poll host adapters", async () => {
+  const port = 40000 + (process.pid % 1000);
+  const broker = new LocalBridgeBroker(port);
+  await broker.start();
+
+  try {
+    const base = "http://127.0.0.1:" + port + "/adapter/lightroom-classic";
+    const hello = await fetch(base + "/hello", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        appVersion: "15-test",
+        adapterVersion: "test",
+        capabilities: ["lightroom-classic.catalog.manage"]
+      })
+    });
+    assert.equal(hello.status, 200);
+
+    const pending = broker.invoke(
+      "lightroom-classic",
+      "lightroom-classic.catalog.manage",
+      { operation: "inspect" },
+      3000
+    );
+
+    const poll = await fetch(base + "/poll");
+    assert.equal(poll.status, 200);
+    const command = await poll.json() as any;
+    assert.equal(command.type, "command");
+    assert.equal(command.op, "lightroom-classic.catalog.manage");
+
+    const resultResponse = await fetch(base + "/result", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        type: "result",
+        id: command.id,
+        ok: true,
+        data: { catalog: "ok" }
+      })
+    });
+    assert.equal(resultResponse.status, 200);
+
+    const result = await pending;
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.data, { catalog: "ok" });
+
+    const eventResponse = await fetch(base + "/event", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        type: "event",
+        event: "context",
+        data: { selectedPhotos: 2 }
+      })
+    });
+    assert.equal(eventResponse.status, 200);
+    assert.deepEqual(broker.state.get("lightroom-classic").context, { selectedPhotos: 2 });
+  } finally {
+    await broker.close();
+  }
+});

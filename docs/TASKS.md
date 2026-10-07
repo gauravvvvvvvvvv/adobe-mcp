@@ -107,7 +107,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Media Encoder 27+ native UXP adapter: enqueue/render/stitch/image sequence, queue control, job/log/missing-assets/project-GUID lookup and add-output.
 - [~] Audition CEP adapter + typed open/favorite/save/close/transport/loop/multitrack state/marker/command operations; deeper effect-rack editing remains host-limited.
 - [x] Animate CEP/JSFL adapter with document create/open/save/publish/export, layer/frame/keyframe/motion-tween/text/alignment operations.
-- [ ] Lightroom Classic Lua adapter.
+- [~] Broker now supports reconnecting localhost HTTP-poll adapters for Lua/host runtimes without WebSocket support; Lightroom Classic plugin implementation is next.
 - [ ] Acrobat adapter.
 - [x] Bridge CEP adapter with selection/inspect, ratings, labels, metadata serialization, copy/move/open and folder browsing.
 - [ ] Substance 3D adapters.
