@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: complete Photoshop selection refinement and save-as surface after `ac8f0cda`.
+Last updated commit target: deterministic Premiere lift/extract range editing after `bc098d87`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -40,11 +40,11 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 - [x] CEP host connection and compact context inspection.
 - [x] Typed project lifecycle and organization: open/new/close/save/saveAs, import media, bins and sequence activation/creation.
-- [~] Typed timeline assembly from explicit source ranges, tracks and placement times.
-- [~] Typed insert/overwrite assembly plus move/trim/delete/ripple-delete/set-enabled and QE razor (single/all tracks); lift/extract remain pending because Premiere exposes no stable documented direct API.
+- [x] Typed timeline assembly from explicit source ranges, tracks, placement times and insert/overwrite modes.
+- [x] Typed insert/overwrite assembly plus move/trim/delete/ripple-delete/set-enabled, QE razor and deterministic lift/extract range emulation (razor boundaries + segment removal + exact ripple shift for extract).
 - [x] QE constant speed/reverse/maintain-pitch/ripple plus typed animated Time Remapping Speed keyframes.
 - [x] Generic component/property keyframes plus first-class static/animated Crop effect controls.
-- [~] Typed QE effect and transition application with named parameter writes.
+- [x] Typed QE video/audio effect and transition application with named parameter writes where the installed effect exposes writable properties.
 - [~] Lumetri Color parameter writes and Input LUT path support.
 - [~] Clip volume, pan, volume keyframes, computed ducking curves and whole-track mute are typed; track mixer automation/effect-send helpers remain pending.
 - [~] SRT/project-item import into caption track with caption-format mapping; styling/readback remains limited by Premiere scripting API.

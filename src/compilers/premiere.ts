@@ -125,6 +125,30 @@ function timelineEdit(params: Record<string, unknown>): Record<string, unknown> 
       body += 'if(' + trackIndex + '>=seq.videoTracks.numTracks)throw new Error("Video track index out of range");var qv=qseq.getVideoTrackAt(' + trackIndex + ');if(!qv)throw new Error("QE video track unavailable");qv.razor(tc);cut.push("V"+(' + trackIndex + '+1));';
     }
     body += 'return JSON.stringify({success:true,operation:"razor",seconds:seconds,timecode:tc,tracks:cut});';
+  } else if (operation === "lift" || operation === "extract") {
+    const start = Math.max(0, finiteNumber(params.start));
+    const end = Math.max(0, finiteNumber(params.end));
+    if (end <= start) throw new Error("range_end_must_exceed_start");
+    const fps = Math.max(1, finiteNumber(params.fps, 30));
+    const allTracks = params.allTracks === true;
+    const tracks = objectArray(params.tracks).map((track) => ({
+      trackType: String(track.trackType ?? "video").toLowerCase() === "audio" ? "audio" : "video",
+      trackIndex: Math.max(0, integer(track.trackIndex ?? track.index, 0))
+    }));
+    if (!allTracks && !tracks.length) {
+      tracks.push({
+        trackType: String(target.trackType ?? "video").toLowerCase() === "audio" ? "audio" : "video",
+        trackIndex: Math.max(0, integer(target.trackIndex, 0))
+      });
+    }
+    const extract = operation === "extract";
+    body += 'try{app.enableQE();}catch(e){throw new Error("QE API unavailable: "+e);}var qseq=qe.project.getActiveSequence();if(!qseq)throw new Error("QE active sequence unavailable");var start=' + js(start) + ',end=' + js(end) + ',fps=' + js(fps) + ',delta=end-start;function __tcRange(seconds){var total=Math.max(0,Math.round(seconds*fps));function p(n){return n<10?"0"+n:String(n);}var ff=total%Math.round(fps),whole=Math.floor(total/fps),ss=whole%60,mm=Math.floor(whole/60)%60,hh=Math.floor(whole/3600);return p(hh)+":"+p(mm)+":"+p(ss)+":"+p(ff);}var tcStart=__tcRange(start),tcEnd=__tcRange(end),targets=[];';
+    if (allTracks) {
+      body += 'for(var vi=0;vi<seq.videoTracks.numTracks;vi++)targets.push({trackType:"video",trackIndex:vi});for(var ai=0;ai<seq.audioTracks.numTracks;ai++)targets.push({trackType:"audio",trackIndex:ai});';
+    } else {
+      body += 'targets=' + js(tracks) + ';';
+    }
+    body += 'var results=[];for(var ti=0;ti<targets.length;ti++){var spec=targets[ti],isAudio=spec.trackType==="audio",domTracks=isAudio?seq.audioTracks:seq.videoTracks;if(spec.trackIndex<0||spec.trackIndex>=domTracks.numTracks)throw new Error("Track index out of range: "+spec.trackType+" "+spec.trackIndex);var qtrack=isAudio?qseq.getAudioTrackAt(spec.trackIndex):qseq.getVideoTrackAt(spec.trackIndex);if(!qtrack)throw new Error("QE track unavailable: "+spec.trackType+" "+spec.trackIndex);qtrack.razor(tcStart);qtrack.razor(tcEnd);var track=domTracks[spec.trackIndex],removed=[];for(var ci=track.clips.numItems-1;ci>=0;ci--){var clip=track.clips[ci],s=__sec(clip.start),e=__sec(clip.end);if(s>=start-0.002&&e<=end+0.002){removed.push({name:String(clip.name),start:s,end:e});clip.remove(false,true);}}var shifted=[];if(' + (extract ? "true" : "false") + '){for(var mi=0;mi<track.clips.numItems;mi++){var later=track.clips[mi],ls=__sec(later.start);if(ls>=end-0.002){var before=ls;later.move(-delta);shifted.push({name:String(later.name),before:before,after:__sec(later.start)});}}}results.push({trackType:spec.trackType,trackIndex:spec.trackIndex,removed:removed,shifted:shifted});}return JSON.stringify({success:true,operation:' + js(operation) + ',start:start,end:end,duration:delta,tracks:results});';
   } else if (operation === "speed") {
     const speed = finiteNumber(params.speed, 1);
     if (speed <= 0) throw new Error("speed_must_be_positive");
@@ -137,7 +161,7 @@ function timelineEdit(params: Record<string, unknown>): Record<string, unknown> 
     const enabled = params.enabled !== false;
     body += 'var clip=__clip(seq,' + js(target) + ');clip.disabled=' + (enabled ? "false" : "true") + ';return JSON.stringify({success:true,operation:"setEnabled",enabled:' + (enabled ? "true" : "false") + '});';
   } else {
-    throw new Error("premiere.timeline.edit operation must be move, delete, trim, razor, speed or setEnabled");
+    throw new Error("premiere.timeline.edit operation must be move, delete, trim, razor, lift, extract, speed or setEnabled");
   }
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }

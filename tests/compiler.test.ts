@@ -59,6 +59,32 @@ test("Premiere assembly and edit compile into ExtendScript", () => {
   assert.match(move, /clip\.move/);
 });
 
+test("Premiere lift and extract compile deterministic range edits", () => {
+  const lift = scriptFor("premiere.timeline.edit", {
+    operation: "lift",
+    start: 2,
+    end: 5,
+    tracks: [
+      { trackType: "video", trackIndex: 0 },
+      { trackType: "audio", trackIndex: 0 }
+    ]
+  });
+  parses(lift);
+  assert.match(lift, /qtrack\.razor\(tcStart\)/);
+  assert.match(lift, /qtrack\.razor\(tcEnd\)/);
+  assert.match(lift, /clip\.remove\(false,true\)/);
+
+  const extract = scriptFor("premiere.timeline.edit", {
+    operation: "extract",
+    start: 2,
+    end: 5,
+    allTracks: true
+  });
+  parses(extract);
+  assert.match(extract, /later\.move\(-delta\)/);
+  assert.match(extract, /operation:"extract"/);
+});
+
 test("Premiere motion, audio and export compilers emit host operations", () => {
   const motion = scriptFor("premiere.motion.animate", {
     target: { trackIndex: 0, clipIndex: 0 },
