@@ -1,9 +1,12 @@
-const { entrypoints, host } = require("uxp");
+const { entrypoints, host, storage } = require("uxp");
 const ame = require("mediaencoder");
+const fs = storage.localFileSystem;
 
 const WS_URL = "ws://127.0.0.1:38470";
 const CAPABILITIES = [
-  "media-encoder.queue.manage"
+  "media-encoder.context.inspect",
+  "media-encoder.queue.manage",
+  "media-encoder.presets.manage"
 ];
 
 let socket = null;
@@ -26,6 +29,41 @@ function requiredString(params, key) {
   const value = params[key];
   if (typeof value !== "string" || !value.trim()) throw new Error(key + " is required");
   return value;
+}
+
+function normalizeFileUrl(path) {
+  const value = requiredString({ path }, "path").replace(/\\/g, "/");
+  if (/^[A-Za-z]:\//.test(value)) return "file:/" + value;
+  if (value.startsWith("/")) return "file:" + value;
+  if (value.startsWith("file:/")) return value;
+  throw new Error("An absolute preset filesystem path is required");
+}
+
+async function presetManage(params) {
+  const operation = String(params.operation || "inspect");
+  if (operation === "inspect" || operation === "validate") {
+    const entry = await fs.getEntryWithUrl(normalizeFileUrl(requiredString(params, "path")));
+    const name = String(entry.name || "");
+    if (!/\.epr$/i.test(name)) throw new Error("Expected an Adobe Media Encoder .epr preset");
+    return {
+      success: true,
+      operation,
+      name,
+      path: entry.nativePath || requiredString(params, "path"),
+      isFile: entry.isFile !== false
+    };
+  }
+  if (operation === "listFolder") {
+    const folder = await fs.getEntryWithUrl(normalizeFileUrl(requiredString(params, "path")));
+    if (typeof folder.getEntries !== "function") throw new Error("Preset path is not a folder");
+    const entries = await folder.getEntries();
+    const presets = entries
+      .filter((entry) => /\.epr$/i.test(String(entry.name || "")))
+      .slice(0, Math.max(1, Math.min(Number(params.limit) || 200, 1000)))
+      .map((entry) => ({ name: entry.name, path: entry.nativePath || entry.name }));
+    return { success: true, operation, folder: folder.nativePath || params.path, presets, count: presets.length };
+  }
+  throw new Error("Supported preset operations: inspect, validate, listFolder");
 }
 
 function compactJob(job) {
@@ -161,7 +199,9 @@ async function queueManage(params) {
 }
 
 async function dispatch(op, params = {}) {
+  if (op === "media-encoder.context.inspect") return inspectContext();
   if (op === "media-encoder.queue.manage") return queueManage(params);
+  if (op === "media-encoder.presets.manage") return presetManage(params);
   throw new Error("Unsupported Media Encoder operation: " + op);
 }
 

@@ -24,7 +24,8 @@
       "premiere.audio.mix",
       "premiere.captions.manage",
       "premiere.graphics.manage",
-      "premiere.export.render"
+      "premiere.export.render",
+      "premiere.timeline.qa"
     ],
     "after-effects": [
       "after-effects.context.inspect",

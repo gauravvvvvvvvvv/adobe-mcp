@@ -99,8 +99,20 @@ server.registerTool(
   },
   async ({ app, fresh, knownHash }) => {
     if (fresh) {
-      const result = await broker.invoke(app, `${app}.context.inspect`, {});
-      if (result.ok) broker.state.setContext(app, result.data);
+      const specialContext: Partial<Record<AdobeApp, { capability: string; params: Record<string, unknown> }>> = {
+        "media-encoder": { capability: "media-encoder.queue.manage", params: { operation: "status" } },
+        "lightroom-classic": { capability: "lightroom-classic.catalog.manage", params: { operation: "inspect" } },
+        "acrobat": { capability: "acrobat.pdf.automate", params: { operation: "inspect" } },
+        "substance-3d": { capability: "substance-3d.project.automate", params: { operation: "inspect" } }
+      };
+      const special = specialContext[app];
+      const result = special
+        ? await invokeCapability(special.capability, special.params, 30_000)
+        : await broker.invoke(app, `${app}.context.inspect`, {});
+      if (result.ok) {
+        const data = "data" in result ? result.data : result;
+        broker.state.setContext(app, data);
+      }
     }
 
     const snapshot = broker.state.get(app);

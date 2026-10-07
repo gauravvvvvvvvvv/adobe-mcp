@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: enforced prepack readiness/version consistency after `71f87bf6`.
+Last updated commit target: capability-advertisement/fresh-context integrity fixes after `5a80acc7`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -23,6 +23,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Runtime / agent workflow
 
+- [x] `inspect_context(fresh=true)` routes each host to its real inspect operation (standard context, Media Encoder queue status, Lightroom catalog inspect, Acrobat PDF inspect, Substance project inspect).
 - [x] `get_capability` returns on-demand parameter/operation/example guides for high-value semantic calls while `search_capabilities` remains lean.
 - [x] `creative.runtime.limits` exposes known Adobe host/tooling ceilings and preferred fallbacks to prevent repeated agent failures.
 - [x] Codex/Claude one-prompt agent playbook covering token-efficient asset analysis, EditSpec jobs, review/repair, crash safety and host API ceilings.
@@ -108,7 +109,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 ## Other Adobe hosts
 
 - [x] InDesign CEP registration/context plus typed document/page/text/image/style/link/export layout compiler.
-- [x] Media Encoder 27+ native UXP adapter: enqueue/render/stitch/image sequence, queue control, job/log/missing-assets/project-GUID lookup and add-output.
+- [x] Media Encoder 27+ native UXP adapter: fresh context, enqueue/render/stitch/image sequence, queue control, job/log/missing-assets/project-GUID/add-output plus `.epr` preset inspect/validate/folder listing.
 - [x] Audition stable scripting surface: typed open/favorite/save/close/transport/loop/multitrack state/marker/command operations; deep effect-rack graph editing is documented as a host API ceiling.
 - [x] Animate CEP/JSFL adapter with document create/open/save/publish/export, layer/frame/keyframe/motion-tween/text/alignment operations.
 - [x] Lightroom Classic Lua adapter with auto-start/reconnect, catalog/selection inspection, metadata read/write, develop-preset application, rotate/import/virtual-copy/collection and programmatic export operations.
