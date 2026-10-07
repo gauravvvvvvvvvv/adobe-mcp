@@ -19,12 +19,14 @@ const R = (
 
 export const CAPABILITIES: Capability[] = [
   R("creative.assets.index", "Index creative assets", "Scan local source/reference assets and return compact media metadata; ffprobe enriches video/audio when installed.", ["creative","assets","media","reference","index"], "read"),
+  R("creative.preview.generate", "Generate review artifacts", "Create a low-resolution video proxy, sampled contact sheet and optional waveform using local ffmpeg so the agent can inspect its own output.", ["creative","review","preview","contact-sheet","waveform"], "write"),
+  R("creative.output.validate", "Validate rendered media", "Machine-check an output file with ffprobe against dimensions, FPS, duration, codec, audio and minimum-size expectations.", ["creative","qa","validate","render","output"], "read"),
   R("creative.editspec.validate", "Validate an EditSpec", "Validate the structured creative brief, deliverables, acceptance criteria and semantic operation plan before editing.", ["creative","editspec","plan","validate"], "read"),
   R("creative.job.create", "Create a creative job", "Persist a validated EditSpec and return a compact job ID for the whole edit/review/repair lifecycle.", ["creative","job","plan"]),
   R("creative.job.get", "Read a creative job", "Return compact status or the full persisted EditSpec/job state.", ["creative","job","status"], "read"),
   R("creative.job.update", "Update a creative job", "Replace the EditSpec for a repair/replan pass or attach a compact note.", ["creative","job","repair","replan"]),
   R("creative.job.run", "Run a creative job", "Execute the EditSpec semantic operations in order across connected Adobe host adapters.", ["creative","job","execute","master-edit"]),
-  R("creative.job.review", "Record a review pass", "Persist the agent's rendered-output review, criterion verdicts and review artifacts; pass completes the job, fail marks it for repair.", ["creative","job","review","qa"]),
+  R("creative.job.review", "Record a review pass", "Persist the agent's rendered-output review and criterion verdicts. Passing requires all required criteria and review artifacts.", ["creative","job","review","qa"]),
 
   C("premiere", "context.inspect", "Inspect active Premiere context", "Project, active sequence, selection, playhead, tracks and media summary.", ["inspect","project","sequence"], "read"),
   C("premiere", "project.manage", "Manage Premiere project", "Create/open/save projects, bins, imports, relinks, proxies and metadata.", ["project","media","bin","proxy"]),

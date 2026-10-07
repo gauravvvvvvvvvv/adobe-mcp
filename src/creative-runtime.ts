@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { indexAssets } from "./assets.js";
 import { getCapability } from "./catalog.js";
 import { editSpecSchema, validateEditSpec, type EditSpec } from "./creative-spec.js";
+import { generateReviewPack, validateMediaOutput } from "./media-review.js";
 import type { LocalBridgeBroker } from "./broker.js";
 import type { AdobeApp } from "./types.js";
 
@@ -96,6 +97,34 @@ export class CreativeRuntime {
         maxAssets: typeof params.maxAssets === "number" ? params.maxAssets : 500,
         hash: params.hash === true,
         probe: params.probe !== false
+      });
+    }
+
+    if (capability === "creative.preview.generate") {
+      if (typeof params.inputPath !== "string" || typeof params.outputDir !== "string") {
+        throw new Error("inputPath_and_outputDir_required");
+      }
+      return generateReviewPack(params.inputPath, params.outputDir, {
+        proxyWidth: typeof params.proxyWidth === "number" ? params.proxyWidth : undefined,
+        contactFrames: typeof params.contactFrames === "number" ? params.contactFrames : undefined,
+        includeWaveform: params.includeWaveform !== false
+      });
+    }
+
+    if (capability === "creative.output.validate") {
+      if (typeof params.path !== "string") throw new Error("path_required");
+      const expected = params.expected && typeof params.expected === "object"
+        ? params.expected as Record<string, unknown>
+        : {};
+      return validateMediaOutput(params.path, {
+        width: typeof expected.width === "number" ? expected.width : undefined,
+        height: typeof expected.height === "number" ? expected.height : undefined,
+        fps: typeof expected.fps === "number" ? expected.fps : undefined,
+        durationSeconds: typeof expected.durationSeconds === "number" ? expected.durationSeconds : undefined,
+        durationToleranceSeconds: typeof expected.durationToleranceSeconds === "number" ? expected.durationToleranceSeconds : undefined,
+        videoCodec: typeof expected.videoCodec === "string" ? expected.videoCodec : undefined,
+        audioRequired: expected.audioRequired === true,
+        minSizeBytes: typeof expected.minSizeBytes === "number" ? expected.minSizeBytes : undefined
       });
     }
 
@@ -250,6 +279,16 @@ export class CreativeRuntime {
       const artifacts = Array.isArray(params.artifacts)
         ? params.artifacts.filter((x): x is string => typeof x === "string")
         : [];
+
+      if (verdict === "pass") {
+        const required = job.spec.acceptanceCriteria.filter((criterion) => criterion.required);
+        const passed = new Set(criteria.filter((criterion) => criterion.verdict === "pass").map((criterion) => criterion.id));
+        const missing = required.filter((criterion) => !passed.has(criterion.id)).map((criterion) => criterion.id);
+        if (missing.length) throw new Error("cannot_pass_review_missing_criteria:" + missing.join(","));
+        if (job.spec.review.requireVisualReview && artifacts.length === 0) {
+          throw new Error("cannot_pass_review_without_artifacts");
+        }
+      }
 
       const review: ReviewRecord = {
         pass: job.reviews.length + 1,
