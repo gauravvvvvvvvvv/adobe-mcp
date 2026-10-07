@@ -6,7 +6,10 @@
     PPRO: "premiere",
     AEFT: "after-effects",
     ILST: "illustrator",
-    IDSN: "indesign"
+    IDSN: "indesign",
+    FLPR: "animate",
+    AUDT: "audition",
+    KBRG: "bridge"
   };
 
   var CAPABILITIES = {
@@ -49,6 +52,18 @@
     ],
     indesign: [
       "indesign.document.layout"
+    ],
+    animate: [
+      "animate.context.inspect",
+      "animate.timeline.author"
+    ],
+    audition: [
+      "audition.context.inspect",
+      "audition.audio.process"
+    ],
+    bridge: [
+      "bridge.context.inspect",
+      "bridge.assets.manage"
     ]
   };
 
@@ -184,11 +199,56 @@
     ].join("");
   }
 
+  function animateContextScript() {
+    return [
+      "(function(){",
+      "try {",
+      "var d=fl.getDocumentDOM();",
+      "if(!d)return JSON.stringify({documents:fl.documents?fl.documents.length:0,activeDocument:null});",
+      "var t=d.getTimeline();",
+      "var layers=[];for(var i=0;i<t.layers.length&&i<100;i++){var l=t.layers[i];layers.push({index:i,name:l.name,layerType:l.layerType,visible:l.visible,locked:l.locked,frameCount:l.frameCount});}",
+      "var path=null;try{path=d.pathURI||null;}catch(_){}",
+      "return JSON.stringify({documents:fl.documents?fl.documents.length:1,activeDocument:{name:d.name,path:path,width:d.width,height:d.height,frameRate:d.frameRate,currentTimeline:d.currentTimeline,timeline:{name:t.name,currentFrame:t.currentFrame,currentLayer:t.currentLayer,frameCount:t.frameCount,layerCount:t.layerCount,layers:layers}}});",
+      "}catch(e){return JSON.stringify({error:String(e)});}",
+      "})()"
+    ].join("");
+  }
+
+  function auditionContextScript() {
+    return [
+      "(function(){",
+      "try {",
+      "var docs=[];try{for(var i=0;i<app.documents.length&&i<50;i++){var x=app.documents[i];docs.push({id:x.id,displayName:x.displayName,path:x.path||null});}}catch(_){}",
+      "var d=app.activeDocument;var active=null;",
+      "if(d){active={id:d.id,displayName:d.displayName,path:d.path||null};try{active.sampleRate=d.sampleRate;}catch(_){}try{active.durationSamples=d.duration;}catch(_){}try{active.playheadPosition=d.playheadPosition;}catch(_){}try{active.markerCount=d.markers.length;}catch(_){}try{var tracks=d.audioTracks;if(tracks){active.trackCount=tracks.length;active.tracks=[];for(var ti=0;ti<tracks.length&&ti<64;ti++){var tr=tracks[ti];active.tracks.push({index:ti,id:tr.id,name:tr.name,mute:tr.mute,solo:tr.solo,armed:tr.armed,type:tr.type});}}}catch(_){} }",
+      "var transport=null;try{var tp=app.transport;transport={isPlaying:tp.isPlaying,isPaused:tp.isPaused,isRecording:tp.isRecording,loop:tp.loop};}catch(_){}",
+      "return JSON.stringify({documents:docs,activeDocument:active,transport:transport});",
+      "}catch(e){return JSON.stringify({error:String(e)});}",
+      "})()"
+    ].join("");
+  }
+
+  function bridgeContextScript() {
+    return [
+      "(function(){",
+      "try {",
+      "var d=app.document;if(!d)return JSON.stringify({document:null});",
+      "var sel=[];try{var s=d.selections;for(var i=0;i<s.length&&i<100;i++){var t=s[i];sel.push({name:t.name,type:t.type,uri:t.uri,rating:t.rating,label:t.label,spec:t.spec?t.spec.fsName:null});}}catch(_){}",
+      "var current=null;try{var th=d.thumbnail;current=th?{name:th.name,type:th.type,uri:th.uri,spec:th.spec?th.spec.fsName:null}:null;}catch(_){}",
+      "return JSON.stringify({document:{selectionCount:sel.length,selections:sel,current:current}});",
+      "}catch(e){return JSON.stringify({error:String(e)});}",
+      "})()"
+    ].join("");
+  }
+
   function contextScript() {
     if (appId === "premiere") return premiereContextScript();
     if (appId === "after-effects") return afterEffectsContextScript();
     if (appId === "illustrator") return illustratorContextScript();
     if (appId === "indesign") return indesignContextScript();
+    if (appId === "animate") return animateContextScript();
+    if (appId === "audition") return auditionContextScript();
+    if (appId === "bridge") return bridgeContextScript();
     throw new Error("Unsupported host");
   }
 
@@ -260,7 +320,7 @@
         type: "hello",
         app: appId,
         appVersion: String(env.appVersion || ""),
-        adapterVersion: "0.1.0",
+        adapterVersion: "0.2.0",
         capabilities: CAPABILITIES[appId] || []
       });
       inspectContext()

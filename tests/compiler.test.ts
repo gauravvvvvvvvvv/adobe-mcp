@@ -243,6 +243,52 @@ test("Illustrator alignment gradient symbols trace and PDF export compile", () =
   assert.match(pdf, /saveAs/);
 });
 
+test("Animate Audition and Bridge semantic compilers generate parseable scripts", () => {
+  const animate = scriptFor("animate.timeline.author", {
+    operation: "addText",
+    text: "Launch",
+    left: 100,
+    top: 100,
+    right: 900,
+    bottom: 260
+  });
+  parses(animate);
+  assert.match(animate, /addNewText/);
+
+  const key = scriptFor("animate.timeline.author", {
+    operation: "keyframe",
+    layerIndex: 0,
+    frame: 12
+  });
+  parses(key);
+  assert.match(key, /insertKeyframe/);
+
+  const audition = scriptFor("audition.audio.process", {
+    operation: "favorite",
+    name: "Normalize to -3 dB"
+  });
+  parses(audition);
+  assert.match(audition, /applyFavorite/);
+
+  const track = scriptFor("audition.audio.process", {
+    operation: "track",
+    trackIndex: 0,
+    mute: true
+  });
+  parses(track);
+  assert.match(track, /audioTracks/);
+  assert.match(track, /tr\.mute=true/);
+
+  const bridge = scriptFor("bridge.assets.manage", {
+    operation: "rating",
+    path: "C:\\assets\\shot.mov",
+    rating: 5
+  });
+  parses(bridge);
+  assert.match(bridge, /new Thumbnail/);
+  assert.match(bridge, /t\.rating=5/);
+});
+
 test("Premiere professional finishing compilers emit QE/MOGRT/caption operations", () => {
   const speed = scriptFor("premiere.timeline.edit", {
     operation: "speed",

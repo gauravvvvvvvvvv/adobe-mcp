@@ -13,6 +13,9 @@
       <Host Name="AEFT" Version="[17.0,99.9]"/>
       <Host Name="ILST" Version="[24.0,99.9]"/>
       <Host Name="IDSN" Version="[15.0,99.9]"/>
+      <Host Name="FLPR" Version="[20.0,99.9]"/>
+      <Host Name="AUDT" Version="[13.0,99.9]"/>
+      <Host Name="KBRG" Version="[10.0,99.9]"/>
     </HostList>
     <LocaleList>
       <Locale Code="All"/>

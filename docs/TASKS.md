@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: native Media Encoder 27+ UXP render-queue adapter after `e6dcf68e`.
+Last updated commit target: Animate/Audition/Bridge semantic CEP host support after `62091704`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -105,11 +105,11 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 - [x] InDesign CEP registration and context path.
 - [x] Media Encoder 27+ native UXP adapter: enqueue/render/stitch/image sequence, queue control, job/log/missing-assets/project-GUID lookup and add-output.
-- [ ] Audition adapter or honest capability detector/fallback.
-- [ ] Animate JSFL adapter.
+- [~] Audition CEP adapter + typed open/favorite/save/close/transport/loop/multitrack state/marker/command operations; deeper effect-rack editing remains host-limited.
+- [x] Animate CEP/JSFL adapter with document create/open/save/publish/export, layer/frame/keyframe/motion-tween/text/alignment operations.
 - [ ] Lightroom Classic Lua adapter.
 - [ ] Acrobat adapter.
-- [ ] Bridge adapter.
+- [x] Bridge CEP adapter with selection/inspect, ratings, labels, metadata serialization, copy/move/open and folder browsing.
 - [ ] Substance 3D adapters.
 
 ## Installation / operations
