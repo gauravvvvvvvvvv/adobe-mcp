@@ -1,0 +1,62 @@
+{
+  "name": "@parryhotter/adobe-mcp",
+  "version": "0.1.0",
+  "mcpName": "io.github.gauravvvvvvvvvv/adobe-mcp",
+  "description": "Local-first MCP server for controlling Adobe creative applications through compact, state-aware host adapters.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "adobe-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "adapters",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "doctor": "tsx src/doctor.ts",
+    "check": "npm run typecheck && npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "adobe",
+    "premiere-pro",
+    "after-effects",
+    "photoshop",
+    "illustrator",
+    "creative-automation"
+  ],
+  "license": "MIT",
+  "author": "Gaurav",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gauravvvvvvvvvv/adobe-mcp.git"
+  },
+  "homepage": "https://github.com/gauravvvvvvvvvv/adobe-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/gauravvvvvvvvvv/adobe-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.2.0",
+    "ws": "^8.18.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

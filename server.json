@@ -1,0 +1,37 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.gauravvvvvvvvvv/adobe-mcp",
+  "title": "Adobe MCP",
+  "description": "Local-first MCP for controlling supported locally installed Adobe creative applications.",
+  "websiteUrl": "https://github.com/gauravvvvvvvvvv/adobe-mcp",
+  "repository": {
+    "url": "https://github.com/gauravvvvvvvvvv/adobe-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@parryhotter/adobe-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "ADOBE_MCP_BRIDGE_PORT",
+          "description": "Localhost port used by Adobe host adapters. Defaults to 38470.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "ADOBE_MCP_APP_DIRS",
+          "description": "Optional extra Adobe application directories separated by the platform path delimiter.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
