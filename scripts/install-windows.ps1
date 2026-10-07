@@ -54,3 +54,15 @@ if (Test-Path -LiteralPath $AcrobatSource) {
     Copy-Item -LiteralPath $AcrobatSource -Destination $AcrobatTarget -Force
     Write-Host "  $AcrobatTarget"
 }
+
+$SubstanceSource = Join-Path $RepoRoot "adapters\substance-3d-painter\python\startup\adobe_mcp.py"
+$Documents = [Environment]::GetFolderPath("MyDocuments")
+$SubstanceRoot = Join-Path $Documents "Adobe\Adobe Substance 3D Painter\python\startup"
+$SubstanceTarget = Join-Path $SubstanceRoot "adobe_mcp.py"
+if (Test-Path -LiteralPath $SubstanceSource) {
+    Write-Host ""
+    Write-Host "Installing Substance 3D Painter Adobe MCP startup plugin..."
+    New-Item -ItemType Directory -Path $SubstanceRoot -Force | Out-Null
+    Copy-Item -LiteralPath $SubstanceSource -Destination $SubstanceTarget -Force
+    Write-Host "  $SubstanceTarget"
+}

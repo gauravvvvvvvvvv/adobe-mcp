@@ -16,3 +16,6 @@ LIGHTROOM_TARGET="$HOME/Library/Application Support/Adobe/Lightroom/Modules/Adob
 [[ -d "$LIGHTROOM_TARGET" ]] && rm -rf "$LIGHTROOM_TARGET" && echo "Removed $LIGHTROOM_TARGET"
 ACROBAT_TARGET="$HOME/Library/Application Support/Adobe/Acrobat/DC/JavaScripts/AdobeMCP.js"
 [[ -f "$ACROBAT_TARGET" ]] && rm -f "$ACROBAT_TARGET" && echo "Removed $ACROBAT_TARGET"
+
+SUBSTANCE_TARGET="$HOME/Documents/Adobe/Adobe Substance 3D Painter/python/startup/adobe_mcp.py"
+[[ -f "$SUBSTANCE_TARGET" ]] && rm -f "$SUBSTANCE_TARGET" && echo "Removed $SUBSTANCE_TARGET"

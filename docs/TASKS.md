@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Acrobat folder-level JavaScript adapter after `55e2cf73`.
+Last updated commit target: Substance 3D Painter Python adapter after `1a2bf4cc`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -110,7 +110,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Lightroom Classic Lua adapter with auto-start/reconnect, catalog/selection inspection, metadata read/write, develop-preset application, rotate/import/virtual-copy/collection and programmatic export operations.
 - [x] Acrobat Pro folder-level trusted JavaScript adapter with reconnecting localhost HTTP transport; inspect/open/save/close, insert/delete/replace/extract/rotate pages, watermarks, annotations, forms, flattening and page labels.
 - [x] Bridge CEP adapter with selection/inspect, ratings, labels, metadata serialization, copy/move/open and folder browsing.
-- [ ] Substance 3D adapters.
+- [x] Substance 3D Painter Python startup adapter with Qt5/Qt6 reconnect bridge; project open/create/save/copy/close, texture-set resolution/inspection, fill/paint/group layers, material/resource operations, blending/opacity and texture export/preview.
 
 ## Installation / operations
 

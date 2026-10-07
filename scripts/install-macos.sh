@@ -53,3 +53,14 @@ if [[ -f "$ACROBAT_SOURCE" ]]; then
   cp "$ACROBAT_SOURCE" "$ACROBAT_TARGET"
   echo "  $ACROBAT_TARGET"
 fi
+
+SUBSTANCE_SOURCE="$REPO_ROOT/adapters/substance-3d-painter/python/startup/adobe_mcp.py"
+SUBSTANCE_ROOT="$HOME/Documents/Adobe/Adobe Substance 3D Painter/python/startup"
+SUBSTANCE_TARGET="$SUBSTANCE_ROOT/adobe_mcp.py"
+if [[ -f "$SUBSTANCE_SOURCE" ]]; then
+  echo
+  echo "Installing Substance 3D Painter Adobe MCP startup plugin..."
+  mkdir -p "$SUBSTANCE_ROOT"
+  cp "$SUBSTANCE_SOURCE" "$SUBSTANCE_TARGET"
+  echo "  $SUBSTANCE_TARGET"
+fi

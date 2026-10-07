@@ -20,3 +20,10 @@ if (Test-Path -LiteralPath $AcrobatTarget) {
     Remove-Item -LiteralPath $AcrobatTarget -Force
     Write-Host "Removed $AcrobatTarget"
 }
+
+$Documents = [Environment]::GetFolderPath("MyDocuments")
+$SubstanceTarget = Join-Path $Documents "Adobe\Adobe Substance 3D Painter\python\startup\adobe_mcp.py"
+if (Test-Path -LiteralPath $SubstanceTarget) {
+    Remove-Item -LiteralPath $SubstanceTarget -Force
+    Write-Host "Removed $SubstanceTarget"
+}
