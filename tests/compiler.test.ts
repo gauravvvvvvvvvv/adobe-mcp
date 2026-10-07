@@ -119,6 +119,69 @@ test("After Effects compilers parse and use undo groups", () => {
   assert.match(animation, /setValueAtTime/);
 });
 
+test("After Effects masks effects 3D footage and advanced shapes compile", () => {
+  const footage = scriptFor("after-effects.layers.manage", {
+    operation: "footage",
+    path: "C:\\media\\plate.mov",
+    name: "Plate",
+    threeDLayer: true
+  });
+  parses(footage);
+  assert.match(footage, /ImportOptions/);
+  assert.match(footage, /app\.project\.importFile/);
+
+  const mask = scriptFor("after-effects.masks.mattes", {
+    target: { name: "Plate" },
+    operation: "mask",
+    vertices: [[0,0],[300,0],[300,200],[0,200]],
+    feather: [10,10]
+  });
+  parses(mask);
+  assert.match(mask, /new Shape\(\)/);
+  assert.match(mask, /ADBE Mask Shape/);
+
+  const matte = scriptFor("after-effects.masks.mattes", {
+    target: { name: "Plate" },
+    operation: "trackMatte",
+    matte: { name: "Matte" },
+    type: "alpha"
+  });
+  parses(matte);
+  assert.match(matte, /setTrackMatte/);
+
+  const effect = scriptFor("after-effects.effects.apply", {
+    target: { name: "Plate" },
+    operation: "effect",
+    name: "ADBE Gaussian Blur 2",
+    parameters: { "Blurriness": 20 }
+  });
+  parses(effect);
+  assert.match(effect, /ADBE Effect Parade/);
+  assert.match(effect, /addProperty/);
+
+  const scene = scriptFor("after-effects.three-d.scene", {
+    operation: "configure",
+    target: { name: "Plate" },
+    position: [960,540,-500],
+    yRotation: 10
+  });
+  parses(scene);
+  assert.match(scene, /threeDLayer/);
+  assert.match(scene, /ADBE Rotate Y/);
+
+  const shape = scriptFor("after-effects.shapes.draw", {
+    shape: "rectangle",
+    stroke: [1,0,0],
+    strokeWidth: 6,
+    trim: { start: 0, end: 75 },
+    repeater: { copies: 4, position: [40,0] }
+  });
+  parses(shape);
+  assert.match(shape, /ADBE Vector Graphic - Stroke/);
+  assert.match(shape, /ADBE Vector Filter - Trim/);
+  assert.match(shape, /ADBE Vector Filter - Repeater/);
+});
+
 test("Illustrator vector compiler parses", () => {
   const vector = scriptFor("illustrator.vector.create", {
     shape: "rectangle", name: "Card", x: 0, y: 500, width: 300, height: 200, fill: [255, 0, 0]

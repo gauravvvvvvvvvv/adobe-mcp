@@ -54,6 +54,10 @@ function layersManage(params: Record<string, unknown>): Record<string, unknown> 
   } else if (operation === "shape") {
     body += 'layer=c.layers.addShape();';
     if (optionalString(params, "name")) body += 'layer.name=' + js(optionalString(params, "name")) + ';';
+  } else if (operation === "footage") {
+    const path = requireString(params, "path");
+    body += 'var file=new File(' + js(path) + ');if(!file.exists)throw new Error("Footage file not found");var opts=new ImportOptions(file);var footage=app.project.importFile(opts);if(!footage)throw new Error("After Effects import failed");layer=c.layers.add(footage);';
+    if (optionalString(params, "name")) body += 'layer.name=' + js(optionalString(params, "name")) + ';';
   } else if (operation === "camera") {
     body += 'layer=c.layers.addCamera(' + js(optionalString(params, "name") ?? "Camera") + ',' + js(Array.isArray(params.center) ? params.center : [960,540]) + ');';
   } else if (operation === "light") {
@@ -71,6 +75,9 @@ function layersManage(params: Record<string, unknown>): Record<string, unknown> 
   }
   if (Array.isArray(params.position)) body += 'try{layer.property("ADBE Transform Group").property("ADBE Position").setValue(' + js(params.position) + ');}catch(_){}';
   if (params.threeDLayer === true) body += 'try{layer.threeDLayer=true;}catch(_){}';
+  if (params.parent && typeof params.parent === "object") body += 'var parentLayer=__layer(c,' + js(params.parent) + ');try{layer.parent=parentLayer;}catch(e){throw new Error("Could not parent layer: "+e);}';
+  if (params.moveBefore && typeof params.moveBefore === "object") body += 'layer.moveBefore(__layer(c,' + js(params.moveBefore) + '));';
+  if (params.moveAfter && typeof params.moveAfter === "object") body += 'layer.moveAfter(__layer(c,' + js(params.moveAfter) + '));';
   body += 'app.endUndoGroup();return JSON.stringify({success:true,index:layer.index,name:layer.name});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
@@ -118,7 +125,116 @@ function shapesDraw(params: Record<string, unknown>): Record<string, unknown> {
   let body = HELPERS + 'var c=__comp(' + (comp ? js(comp) : "null") + ');app.beginUndoGroup("Adobe MCP: shape");var l=c.layers.addShape();l.name=' + js(name) + ';var contents=l.property("ADBE Root Vectors Group");var group=contents.addProperty("ADBE Vector Group");var gc=group.property("ADBE Vectors Group");';
   if (shape === "ellipse") body += 'var path=gc.addProperty("ADBE Vector Shape - Ellipse");path.property("ADBE Vector Ellipse Size").setValue(' + js(size) + ');';
   else body += 'var path=gc.addProperty("ADBE Vector Shape - Rect");path.property("ADBE Vector Rect Size").setValue(' + js(size) + ');';
-  body += 'var f=gc.addProperty("ADBE Vector Graphic - Fill");f.property("ADBE Vector Fill Color").setValue(' + js(fill) + ');l.property("ADBE Transform Group").property("ADBE Position").setValue(' + js(position) + ');app.endUndoGroup();return JSON.stringify({success:true,index:l.index,name:l.name,shape:' + js(shape) + '});';
+  body += 'var f=gc.addProperty("ADBE Vector Graphic - Fill");f.property("ADBE Vector Fill Color").setValue(' + js(fill) + ');';
+  if (Array.isArray(params.stroke)) {
+    body += 'var st=gc.addProperty("ADBE Vector Graphic - Stroke");st.property("ADBE Vector Stroke Color").setValue(' + js(params.stroke) + ');st.property("ADBE Vector Stroke Width").setValue(' + Math.max(0, finiteNumber(params.strokeWidth, 4)) + ');';
+  }
+  if (params.trim === true || (params.trim && typeof params.trim === "object")) {
+    const trim = params.trim && typeof params.trim === "object" ? params.trim as Record<string, unknown> : {};
+    body += 'var trm=gc.addProperty("ADBE Vector Filter - Trim");trm.property("ADBE Vector Trim Start").setValue(' + finiteNumber(trim.start, 0) + ');trm.property("ADBE Vector Trim End").setValue(' + finiteNumber(trim.end, 100) + ');trm.property("ADBE Vector Trim Offset").setValue(' + finiteNumber(trim.offset, 0) + ');';
+  }
+  if (params.repeater && typeof params.repeater === "object") {
+    const rep = params.repeater as Record<string, unknown>;
+    body += 'var rep=gc.addProperty("ADBE Vector Filter - Repeater");rep.property("ADBE Vector Repeater Copies").setValue(' + Math.max(1, finiteNumber(rep.copies, 3)) + ');var rt=rep.property("ADBE Vector Repeater Transform");';
+    if (Array.isArray(rep.position)) body += 'rt.property("ADBE Vector Repeater Position").setValue(' + js(rep.position) + ');';
+    if (rep.rotation !== undefined) body += 'rt.property("ADBE Vector Repeater Rotation").setValue(' + finiteNumber(rep.rotation) + ');';
+    if (Array.isArray(rep.scale)) body += 'rt.property("ADBE Vector Repeater Scale").setValue(' + js(rep.scale) + ');';
+  }
+  body += 'l.property("ADBE Transform Group").property("ADBE Position").setValue(' + js(position) + ');app.endUndoGroup();return JSON.stringify({success:true,index:l.index,name:l.name,shape:' + js(shape) + '});';
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
+function masksMattes(params: Record<string, unknown>): Record<string, unknown> {
+  const comp = optionalString(params, "composition");
+  const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+  const operation = String(params.operation ?? "mask");
+  let body = HELPERS + 'var c=__comp(' + (comp ? js(comp) : "null") + ');var l=__layer(c,' + js(target) + ');app.beginUndoGroup("Adobe MCP: masks and mattes");';
+
+  if (operation === "mask") {
+    const vertices = Array.isArray(params.vertices) ? params.vertices : [];
+    if (vertices.length < 3) throw new Error("mask_vertices_min_3");
+    const zeros = vertices.map(() => [0,0]);
+    const inTangents = Array.isArray(params.inTangents) && params.inTangents.length === vertices.length ? params.inTangents : zeros;
+    const outTangents = Array.isArray(params.outTangents) && params.outTangents.length === vertices.length ? params.outTangents : zeros;
+    const mode = String(params.mode ?? "add").toLowerCase();
+    const modes: Record<string,string> = { add:"ADD", subtract:"SUBTRACT", intersect:"INTERSECT", none:"NONE", lighten:"LIGHTEN", darken:"DARKEN", difference:"DIFFERENCE" };
+    const modeName = modes[mode] ?? "ADD";
+    const feather = Array.isArray(params.feather) ? params.feather : [0,0];
+    const opacity = Math.max(0, Math.min(100, finiteNumber(params.opacity, 100)));
+    const expansion = finiteNumber(params.expansion, 0);
+    body += 'var mg=l.property("ADBE Mask Parade");if(!mg)throw new Error("Layer has no mask group");var m=mg.addProperty("ADBE Mask Atom");m.name=' + js(optionalString(params,"name") ?? "Mask") + ';var sh=new Shape();sh.vertices=' + js(vertices) + ';sh.inTangents=' + js(inTangents) + ';sh.outTangents=' + js(outTangents) + ';sh.closed=' + (params.closed !== false ? "true" : "false") + ';m.property("ADBE Mask Shape").setValue(sh);try{m.maskMode=MaskMode.' + modeName + ';}catch(_){}try{m.property("ADBE Mask Feather").setValue(' + js(feather) + ');}catch(_){}try{m.property("ADBE Mask Opacity").setValue(' + opacity + ');}catch(_){}try{m.property("ADBE Mask Offset").setValue(' + expansion + ');}catch(_){}app.endUndoGroup();return JSON.stringify({success:true,operation:"mask",layer:l.name,mask:m.name,vertices:' + vertices.length + '});';
+  } else if (operation === "trackMatte") {
+    const matte = params.matte && typeof params.matte === "object" ? params.matte as Record<string, unknown> : {};
+    const type = String(params.type ?? "alpha").toLowerCase();
+    const types: Record<string,string> = { alpha:"ALPHA", alphaInverted:"ALPHA_INVERTED", "alpha-inverted":"ALPHA_INVERTED", luma:"LUMA", lumaInverted:"LUMA_INVERTED", "luma-inverted":"LUMA_INVERTED" };
+    const typeName = types[type] ?? "ALPHA";
+    body += 'var matte=__layer(c,' + js(matte) + ');if(l.setTrackMatte){l.setTrackMatte(matte,TrackMatteType.' + typeName + ');}else{try{matte.moveBefore(l);}catch(_){}l.trackMatteType=TrackMatteType.' + typeName + ';}app.endUndoGroup();return JSON.stringify({success:true,operation:"trackMatte",layer:l.name,matte:matte.name,type:' + js(typeName) + '});';
+  } else if (operation === "removeTrackMatte") {
+    body += 'if(l.removeTrackMatte)l.removeTrackMatte();else l.trackMatteType=TrackMatteType.NO_TRACK_MATTE;app.endUndoGroup();return JSON.stringify({success:true,operation:"removeTrackMatte",layer:l.name});';
+  } else {
+    throw new Error("after-effects.masks.mattes operation must be mask, trackMatte or removeTrackMatte");
+  }
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
+function effectsApply(params: Record<string, unknown>): Record<string, unknown> {
+  const comp = optionalString(params, "composition");
+  const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+  const operation = String(params.operation ?? "effect");
+  let body = HELPERS + 'var c=__comp(' + (comp ? js(comp) : "null") + ');var l=__layer(c,' + js(target) + ');app.beginUndoGroup("Adobe MCP: effect");';
+
+  if (operation === "preset") {
+    const path = requireString(params, "path");
+    body += 'var f=new File(' + js(path) + ');if(!f.exists)throw new Error("Animation preset not found");if(!l.applyPreset)throw new Error("Layer applyPreset API unavailable");l.applyPreset(f);app.endUndoGroup();return JSON.stringify({success:true,operation:"preset",layer:l.name,path:f.fsName});';
+  } else if (operation === "effect") {
+    const name = requireString(params, "name");
+    const values = params.parameters && typeof params.parameters === "object" ? params.parameters as Record<string, unknown> : {};
+    body += 'var parade=l.property("ADBE Effect Parade");if(!parade)throw new Error("Effect parade unavailable");if(parade.canAddProperty&&!parade.canAddProperty(' + js(name) + '))throw new Error("Effect cannot be added: "+' + js(name) + ');var fx=parade.addProperty(' + js(name) + ');if(!fx)throw new Error("Effect add failed");var values=' + js(values) + ';var writes=[];for(var k in values){if(values.hasOwnProperty&&!values.hasOwnProperty(k))continue;var p=null;try{p=fx.property(k);}catch(_){}if(!p&&!isNaN(Number(k))){try{p=fx.property(Number(k));}catch(_){}}if(!p){writes.push({property:k,ok:false,error:"not_found"});continue;}try{p.setValue(values[k]);writes.push({property:k,ok:true});}catch(e){writes.push({property:k,ok:false,error:String(e)});}}app.endUndoGroup();return JSON.stringify({success:true,operation:"effect",layer:l.name,effect:fx.name,writes:writes});';
+  } else if (operation === "remove") {
+    const name = requireString(params, "name");
+    body += 'var parade=l.property("ADBE Effect Parade");var removed=false;for(var i=parade.numProperties;i>=1;i--){var fx=parade.property(i);if(String(fx.name)===' + js(name) + '||String(fx.matchName)===' + js(name) + '){fx.remove();removed=true;break;}}if(!removed)throw new Error("Effect not found");app.endUndoGroup();return JSON.stringify({success:true,operation:"remove",name:' + js(name) + '});';
+  } else {
+    throw new Error("after-effects.effects.apply operation must be effect, preset or remove");
+  }
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
+function threeDScene(params: Record<string, unknown>): Record<string, unknown> {
+  const comp = optionalString(params, "composition");
+  const operation = String(params.operation ?? "configure");
+  const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+  let body = HELPERS + 'var c=__comp(' + (comp ? js(comp) : "null") + ');app.beginUndoGroup("Adobe MCP: 3D scene");';
+
+  if (operation === "configure") {
+    body += 'var l=__layer(c,' + js(target) + ');l.threeDLayer=' + (params.enabled !== false ? "true" : "false") + ';var tr=l.property("ADBE Transform Group");';
+    if (Array.isArray(params.position)) body += 'tr.property("ADBE Position").setValue(' + js(params.position) + ');';
+    if (Array.isArray(params.orientation)) body += 'tr.property("ADBE Orientation").setValue(' + js(params.orientation) + ');';
+    if (params.xRotation !== undefined) body += 'tr.property("ADBE Rotate X").setValue(' + finiteNumber(params.xRotation) + ');';
+    if (params.yRotation !== undefined) body += 'tr.property("ADBE Rotate Y").setValue(' + finiteNumber(params.yRotation) + ');';
+    if (params.zRotation !== undefined) body += 'tr.property("ADBE Rotate Z").setValue(' + finiteNumber(params.zRotation) + ');';
+    if (params.parent && typeof params.parent === "object") body += 'l.parent=__layer(c,' + js(params.parent) + ');';
+    if (params.motionBlur !== undefined) body += 'l.motionBlur=' + (params.motionBlur === true ? "true" : "false") + ';';
+    body += 'app.endUndoGroup();return JSON.stringify({success:true,operation:"configure",layer:l.name,threeDLayer:l.threeDLayer});';
+  } else if (operation === "camera") {
+    const name = optionalString(params,"name") ?? "Camera";
+    const center = Array.isArray(params.center) ? params.center : [960,540];
+    body += 'var camera=c.layers.addCamera(' + js(name) + ',' + js(center) + ');';
+    if (Array.isArray(params.position)) body += 'camera.property("ADBE Transform Group").property("ADBE Position").setValue(' + js(params.position) + ');';
+    if (params.zoom !== undefined) body += 'try{camera.property("ADBE Camera Options Group").property("ADBE Camera Zoom").setValue(' + finiteNumber(params.zoom) + ');}catch(_){}';
+    body += 'app.endUndoGroup();return JSON.stringify({success:true,operation:"camera",name:camera.name,index:camera.index});';
+  } else if (operation === "light") {
+    const name = optionalString(params,"name") ?? "Light";
+    const center = Array.isArray(params.center) ? params.center : [960,540];
+    body += 'var light=c.layers.addLight(' + js(name) + ',' + js(center) + ');';
+    if (Array.isArray(params.position)) body += 'light.property("ADBE Transform Group").property("ADBE Position").setValue(' + js(params.position) + ');';
+    if (params.intensity !== undefined) body += 'try{light.property("ADBE Light Options Group").property("ADBE Light Intensity").setValue(' + finiteNumber(params.intensity) + ');}catch(_){}';
+    body += 'app.endUndoGroup();return JSON.stringify({success:true,operation:"light",name:light.name,index:light.index});';
+  } else if (operation === "parent") {
+    const parent = params.parent && typeof params.parent === "object" ? params.parent as Record<string, unknown> : {};
+    body += 'var l=__layer(c,' + js(target) + ');var p=__layer(c,' + js(parent) + ');l.parent=p;app.endUndoGroup();return JSON.stringify({success:true,operation:"parent",layer:l.name,parent:p.name});';
+  } else {
+    throw new Error("after-effects.three-d.scene operation must be configure, camera, light or parent");
+  }
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
@@ -146,6 +262,9 @@ export function compileAfterEffects(capability: string, params: Record<string, u
     case "after-effects.properties.animate": return propertiesAnimate(params);
     case "after-effects.text.animate": return textAnimate(params);
     case "after-effects.shapes.draw": return shapesDraw(params);
+    case "after-effects.masks.mattes": return masksMattes(params);
+    case "after-effects.effects.apply": return effectsApply(params);
+    case "after-effects.three-d.scene": return threeDScene(params);
     case "after-effects.render.queue": return renderQueue(params);
     default: return params;
   }

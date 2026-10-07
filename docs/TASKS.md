@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Premiere razor/pan/ducking/track-mute compiler block after `dc16e23e`.
+Last updated commit target: After Effects masks/effects/3D/footage block after `6c65df2a`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -59,13 +59,13 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 - [x] CEP host connection and compact context inspection.
 - [~] Typed composition create/duplicate/precompose.
-- [~] Typed text/solid/null/shape/camera/light create plus duplicate/remove; footage import/parent/reorder pending.
+- [x] Typed text/solid/null/shape/camera/light/footage import plus duplicate/remove, parent and move-before/move-after ordering.
 - [~] Generic property-path keyframes and temporal easing.
 - [~] Text-layer creation with transform intro animation; native text animator selectors pending.
-- [~] Rectangle/ellipse shape layers with fills; arbitrary paths/strokes/trim/repeaters pending.
-- [ ] Masks/mattes/blend modes.
-- [ ] Effects/plugin parameters.
-- [ ] Cameras/lights/3D layers.
+- [~] Rectangle/ellipse shape layers now support fills, strokes, trim paths and repeaters; arbitrary Bezier path construction remains pending.
+- [~] Typed masks with shape/feather/opacity/expansion plus set/remove track mattes; explicit layer blend-mode helper remains pending.
+- [x] Typed effect add/remove, effect parameter writes and animation-preset (.ffx) application.
+- [x] Typed 3D enable/position/orientation/rotation/parent/motion-blur plus camera/light creation and basic options.
 - [~] Render queue item/output path/templates/start controls.
 - [x] Kinetic typography recipe.
 - [x] Logo reveal recipe.
