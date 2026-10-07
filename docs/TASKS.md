@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: guarded real-host Premiere acceptance runner after `6acc1d76`.
+Last updated commit target: cached bulk asset fingerprint analysis after `353c4848`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -24,11 +24,12 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 ## Runtime / agent workflow
 
 - [x] `creative.assets.index`
+- [x] `creative.assets.analyze` with persistent local fingerprint cache and duplicate detection.
 - [x] `creative.editspec.validate`
 - [x] `creative.job.create/get/update/run/review`
 - [x] `creative.preview.generate`
 - [x] `creative.output.validate`
-- [~] Asset/reference analysis now includes scene cuts, sampled frames, silence map and loudness; perceptual fingerprints and per-source bulk analysis remain pending.
+- [x] Asset/reference analysis includes bulk cached asset manifests, optional exact SHA-256, visual dHash/audio fingerprints, duplicate/near-duplicate detection, plus reference scene cuts, sampled frames, silence map and loudness.
 - [x] Reference-video analysis manifest with shot pacing statistics, proxy/contact sheet/waveform and sampled-frame paths.
 - [x] Code-backed recipe library with list/expand for Premiere rough cut, J/L-cut, beat-cut, social cutdown, AE kinetic typography/logo reveal/parallax, Photoshop compositing and Illustrator logo systems.
 - [x] Working-file checkpoints with SHA-256 snapshots and confirm-gated restore with pre-restore backup.

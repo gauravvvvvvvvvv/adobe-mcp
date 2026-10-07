@@ -36,6 +36,7 @@ src/index.ts                         small MCP facade
        +--> src/invoke.ts            shared compiled host invocation path
        +--> src/creative-runtime.ts  EditSpec/job/review lifecycle
        +--> src/assets.ts            local asset index
+       +--> src/asset-analysis.ts    cached fingerprint/duplicate analysis
        +--> src/media-review.ts      ffmpeg/ffprobe review + QA
        +--> src/state.ts             hashed persistent context cache
        |
@@ -77,8 +78,8 @@ Do not add a separate MCP tool for each editing command unless there is a compel
 
 Recommended agent behavior:
 
-1. `execute creative.assets.index`
-2. For reference videos, run `creative.reference.analyze` and inspect its proxy/contact sheet/sampled frames; use scene timings as pacing evidence.
+1. `execute creative.assets.index` for a small source set, or `creative.assets.analyze` for large folders / duplicate-heavy media libraries.
+2. Use the compact fingerprint/duplicate manifest to shortlist sources. For reference videos, run `creative.reference.analyze` and inspect its proxy/contact sheet/sampled frames; use scene timings as pacing evidence.
 3. Inspect/generate any additional source/reference review artifacts as needed.
 4. Construct an EditSpec with explicit acceptance criteria and semantic operations.
 5. `execute creative.editspec.validate`
@@ -156,7 +157,8 @@ Photoshop uses UXP.
 - Do not include context in `adobe_status`.
 - Prefer `creative.recipe.expand` plus a small EditSpec over rebuilding common workflows from primitive calls.
 - Return changed IDs/ranges/warnings, not whole timelines/documents.
-- Generate contact sheets/proxies instead of forcing the agent to repeatedly ingest source-resolution video.
+- Run `creative.assets.analyze` once for large media sets; its cache is keyed by path/size/mtime and returns compact exact/near-duplicate evidence.
+- Generate contact sheets/proxies only for shortlisted assets instead of forcing the agent to repeatedly ingest source-resolution video.
 - Persist recipe/job/state data on disk rather than repeating it in the conversation.
 
 ## Verification philosophy

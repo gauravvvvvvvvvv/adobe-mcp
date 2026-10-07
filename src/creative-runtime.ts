@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { analyzeAssets } from "./asset-analysis.js";
 import { indexAssets } from "./assets.js";
 import { getCapability } from "./catalog.js";
 import { editSpecSchema, validateEditSpec, type EditSpec } from "./creative-spec.js";
@@ -201,6 +202,19 @@ export class CreativeRuntime {
         maxAssets: typeof params.maxAssets === "number" ? params.maxAssets : 500,
         hash: params.hash === true,
         probe: params.probe !== false
+      });
+    }
+
+    if (capability === "creative.assets.analyze") {
+      const paths = Array.isArray(params.paths) ? params.paths.filter((x): x is string => typeof x === "string") : [];
+      if (!paths.length) throw new Error("paths_required");
+      return analyzeAssets(paths, {
+        recursive: params.recursive !== false,
+        maxAssets: typeof params.maxAssets === "number" ? params.maxAssets : 500,
+        exactHash: params.exactHash === true,
+        nearDuplicateDistance: typeof params.nearDuplicateDistance === "number"
+          ? params.nearDuplicateDistance
+          : undefined
       });
     }
 
