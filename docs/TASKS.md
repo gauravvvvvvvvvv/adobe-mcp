@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: After Effects masks/effects/3D/footage block after `6c65df2a`.
+Last updated commit target: Illustrator alignment/gradient/symbol/trace/PDF block after `cfb9e639`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -93,12 +93,12 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] CEP connection and compact context inspection.
 - [~] Document create/saveAs and artboard creation.
 - [~] Rectangle/ellipse/polygon/arbitrary-path creation.
-- [~] Move/rotate/scale; alignment/distribution pending.
-- [~] Fill/stroke/opacity; gradient/advanced appearance pending.
+- [x] Move/rotate/scale/z-order plus mathematical alignment to artboard/selection and horizontal/vertical distribution.
+- [~] Fill/stroke/opacity, linear/radial gradients and existing-pattern fills; advanced appearance stacks/live effects remain pending.
 - [~] Point-text creation/style basics.
-- [ ] Symbols/patterns/brushes.
-- [ ] Image trace.
-- [~] SVG/PNG/JPEG export; PDF-specific save/export pending.
+- [~] Create/place symbols and apply existing document patterns; programmatic pattern-tile authoring and brush creation remain pending.
+- [x] Local placed-image trace with preset/options, redraw and optional expansion.
+- [x] SVG/PNG/JPEG export plus PDF save with editability/preset controls.
 - [x] Logo/vector recipe builds deterministic primitives plus optional wordmark.
 
 ## Other Adobe hosts

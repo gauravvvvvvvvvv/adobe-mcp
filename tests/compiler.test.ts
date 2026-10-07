@@ -190,6 +190,59 @@ test("Illustrator vector compiler parses", () => {
   assert.match(vector, /pathItems\.rectangle/);
 });
 
+test("Illustrator alignment gradient symbols trace and PDF export compile", () => {
+  const align = scriptFor("illustrator.vector.transform", {
+    operation: "align",
+    targets: [{ name: "A" }, { name: "B" }],
+    mode: "hCenter",
+    reference: "artboard"
+  });
+  parses(align);
+  assert.match(align, /artboardRect/);
+  assert.match(align, /translate\(dx,dy\)/);
+
+  const gradient = scriptFor("illustrator.appearance.style", {
+    target: { name: "Card" },
+    gradient: {
+      type: "linear",
+      angle: 45,
+      stops: [
+        { rampPoint: 0, color: [255,0,0] },
+        { rampPoint: 100, color: [0,0,255] }
+      ]
+    }
+  });
+  parses(gradient);
+  assert.match(gradient, /new GradientColor/);
+  assert.match(gradient, /gradientStops/);
+
+  const symbol = scriptFor("illustrator.symbols.patterns", {
+    operation: "createSymbol",
+    target: { name: "LogoMark" },
+    name: "LogoSymbol"
+  });
+  parses(symbol);
+  assert.match(symbol, /symbols\.add/);
+
+  const trace = scriptFor("illustrator.image.trace", {
+    path: "C:\\assets\\sketch.png",
+    mode: "blackandwhite",
+    threshold: 140,
+    expand: true
+  });
+  parses(trace);
+  assert.match(trace, /placed\.trace\(\)/);
+  assert.match(trace, /expandTracing/);
+
+  const pdf = scriptFor("illustrator.export.assets", {
+    path: "C:\\out\\brand.pdf",
+    format: "pdf"
+  });
+  parses(pdf);
+  assert.match(pdf, /PDFSaveOptions/);
+  assert.match(pdf, /saveAs/);
+});
+
 test("Premiere professional finishing compilers emit QE/MOGRT/caption operations", () => {
   const speed = scriptFor("premiere.timeline.edit", {
     operation: "speed",

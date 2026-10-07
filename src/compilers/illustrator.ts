@@ -58,11 +58,42 @@ function vectorCreate(params: Record<string, unknown>): Record<string, unknown> 
 function vectorTransform(params: Record<string, unknown>): Record<string, unknown> {
   const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
   const operation = String(params.operation ?? "");
-  let body = HELPERS + 'var d=__doc();var item=__item(d,' + js(target) + ');';
+  let body = HELPERS + 'var d=__doc();';
+
+  if (operation === "align" || operation === "distribute") {
+    const specs = Array.isArray(params.targets)
+      ? params.targets.filter((item): item is Record<string, unknown> => !!item && typeof item === "object" && !Array.isArray(item))
+      : [target];
+    if (!specs.length) throw new Error("targets_required");
+    body += 'var specs=' + js(specs) + ';var items=[];for(var si=0;si<specs.length;si++)items.push(__item(d,specs[si]));';
+
+    if (operation === "align") {
+      const mode = String(params.mode ?? "center");
+      const reference = String(params.reference ?? "selection");
+      body += 'var left,top,right,bottom;';
+      if (reference === "artboard") {
+        body += 'var ar=d.artboards[d.artboards.getActiveArtboardIndex()].artboardRect;left=ar[0];top=ar[1];right=ar[2];bottom=ar[3];';
+      } else {
+        body += 'var b0=items[0].geometricBounds;left=b0[0];top=b0[1];right=b0[2];bottom=b0[3];for(var bi=1;bi<items.length;bi++){var bb=items[bi].geometricBounds;if(bb[0]<left)left=bb[0];if(bb[1]>top)top=bb[1];if(bb[2]>right)right=bb[2];if(bb[3]<bottom)bottom=bb[3];}';
+      }
+      body += 'var mode=' + js(mode) + ';var moved=[];for(var ai=0;ai<items.length;ai++){var it=items[ai],b=it.geometricBounds,dx=0,dy=0;if(mode==="left")dx=left-b[0];else if(mode==="right")dx=right-b[2];else if(mode==="hCenter"||mode==="center")dx=((left+right)/2)-((b[0]+b[2])/2);if(mode==="top")dy=top-b[1];else if(mode==="bottom")dy=bottom-b[3];else if(mode==="vCenter"||mode==="center")dy=((top+bottom)/2)-((b[1]+b[3])/2);it.translate(dx,dy);moved.push({name:it.name,dx:dx,dy:dy});}return JSON.stringify({success:true,operation:"align",mode:mode,reference:' + js(reference) + ',moved:moved});';
+    } else {
+      const direction = String(params.direction ?? "horizontal");
+      body += 'if(items.length<3)return JSON.stringify({success:true,operation:"distribute",changed:false,count:items.length});var direction=' + js(direction) + ';';
+      body += 'if(direction==="vertical"){items.sort(function(a,b){return b.geometricBounds[1]-a.geometricBounds[1];});var top=items[0].geometricBounds[1],bottom=items[items.length-1].geometricBounds[3],total=0;for(var vi=0;vi<items.length;vi++){var vb=items[vi].geometricBounds;total+=vb[1]-vb[3];}var gap=((top-bottom)-total)/(items.length-1),cursor=top;for(var v=0;v<items.length;v++){var item=items[v],b=item.geometricBounds,h=b[1]-b[3];item.translate(0,cursor-b[1]);cursor-=h+gap;}}else{items.sort(function(a,b){return a.geometricBounds[0]-b.geometricBounds[0];});var left=items[0].geometricBounds[0],right=items[items.length-1].geometricBounds[2],total=0;for(var hi=0;hi<items.length;hi++){var hb=items[hi].geometricBounds;total+=hb[2]-hb[0];}var gap=((right-left)-total)/(items.length-1),cursor=left;for(var h=0;h<items.length;h++){var item=items[h],b=item.geometricBounds,w=b[2]-b[0];item.translate(cursor-b[0],0);cursor+=w+gap;}}return JSON.stringify({success:true,operation:"distribute",direction:direction,count:items.length,gap:gap});';
+    }
+    return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+  }
+
+  body += 'var item=__item(d,' + js(target) + ');';
   if (operation === "move") body += 'item.translate(' + finiteNumber(params.dx,0) + ',' + finiteNumber(params.dy,0) + ');';
   else if (operation === "rotate") body += 'item.rotate(' + finiteNumber(params.degrees,0) + ',true,true,true,true,Transformation.CENTER);';
   else if (operation === "scale") body += 'item.resize(' + finiteNumber(params.xPercent,100) + ',' + finiteNumber(params.yPercent,finiteNumber(params.xPercent,100)) + ',true,true,true,true,' + finiteNumber(params.strokePercent,100) + ',Transformation.CENTER);';
-  else throw new Error("illustrator.vector.transform operation must be move, rotate or scale");
+  else if (operation === "zOrder") {
+    const action = String(params.action ?? "front");
+    const map: Record<string,string> = { front:"BRINGTOFRONT", forward:"BRINGFORWARD", backward:"SENDBACKWARD", back:"SENDTOBACK" };
+    body += 'item.zOrder(ZOrderMethod.' + (map[action] ?? "BRINGTOFRONT") + ');';
+  } else throw new Error("illustrator.vector.transform operation must be move, rotate, scale, align, distribute or zOrder");
   body += 'return JSON.stringify({success:true,name:item.name,operation:' + js(operation) + '});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
@@ -74,9 +105,27 @@ function appearanceStyle(params: Record<string, unknown>): Record<string, unknow
   const opacity = params.opacity === undefined ? undefined : Math.max(0,Math.min(100,finiteNumber(params.opacity)));
   let body = HELPERS + 'var d=__doc();var item=__item(d,' + js(target) + ');';
   if (fill) body += 'item.filled=true;item.fillColor=__rgb(' + js(fill) + ');';
+  if (params.gradient && typeof params.gradient === "object") {
+    const gradient = params.gradient as Record<string, unknown>;
+    const stops = Array.isArray(gradient.stops)
+      ? gradient.stops.filter((s): s is Record<string, unknown> => !!s && typeof s === "object" && !Array.isArray(s))
+      : [];
+    if (stops.length < 2) throw new Error("gradient_requires_at_least_two_stops");
+    const normalizedStops = stops.map((stop, index) => ({
+      rampPoint: Math.max(0, Math.min(100, finiteNumber(stop.rampPoint, index * (100 / Math.max(1, stops.length - 1))))),
+      midPoint: Math.max(13, Math.min(87, finiteNumber(stop.midPoint, 50))),
+      color: Array.isArray(stop.color) ? stop.color : [0,0,0]
+    }));
+    body += 'var grad=d.gradients.add();grad.name=' + js(typeof gradient.name === "string" ? gradient.name : "Adobe MCP Gradient") + ';grad.type=' + (String(gradient.type ?? "linear").toLowerCase()==="radial" ? "GradientType.RADIAL" : "GradientType.LINEAR") + ';var stops=' + js(normalizedStops) + ';while(grad.gradientStops.length<stops.length)grad.gradientStops.add();for(var gi=0;gi<stops.length;gi++){var gs=grad.gradientStops[gi];gs.rampPoint=stops[gi].rampPoint;gs.midPoint=stops[gi].midPoint;gs.color=__rgb(stops[gi].color);}var gc=new GradientColor();gc.gradient=grad;';
+    if (gradient.angle !== undefined) body += 'try{gc.angle=' + finiteNumber(gradient.angle) + ';}catch(_){}';
+    body += 'item.filled=true;item.fillColor=gc;';
+  }
+  if (typeof params.patternName === "string" && params.patternName) {
+    body += 'var pattern=d.patterns.getByName(' + js(params.patternName) + ');var pc=new PatternColor();pc.pattern=pattern;item.filled=true;item.fillColor=pc;';
+  }
   if (stroke) body += 'item.stroked=true;item.strokeColor=__rgb(' + js(stroke) + ');item.strokeWidth=' + Math.max(0,finiteNumber(params.strokeWidth,1)) + ';';
   if (opacity !== undefined) body += 'item.opacity=' + opacity + ';';
-  body += 'return JSON.stringify({success:true,name:item.name,opacity:item.opacity});';
+  body += 'return JSON.stringify({success:true,name:item.name,opacity:item.opacity,fillType:item.fillColor?item.fillColor.typename:null});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
@@ -91,6 +140,52 @@ function textManage(params: Record<string, unknown>): Record<string, unknown> {
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
+function symbolsPatterns(params: Record<string, unknown>): Record<string, unknown> {
+  const operation = String(params.operation ?? "createSymbol");
+  const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+  let body = HELPERS + 'var d=__doc();';
+
+  if (operation === "createSymbol") {
+    const name = requireString(params, "name");
+    body += 'var item=__item(d,' + js(target) + ');var sym=d.symbols.add(item);sym.name=' + js(name) + ';return JSON.stringify({success:true,operation:"createSymbol",name:sym.name});';
+  } else if (operation === "placeSymbol") {
+    const name = requireString(params, "name");
+    const position = Array.isArray(params.position) ? params.position : [0,0];
+    body += 'var sym=d.symbols.getByName(' + js(name) + ');var instance=d.symbolItems.add(sym);instance.position=' + js(position) + ';';
+    if (params.scale !== undefined) body += 'instance.resize(' + finiteNumber(params.scale,100) + ',' + finiteNumber(params.scale,100) + ',true,true,true,true,' + finiteNumber(params.scale,100) + ',Transformation.CENTER);';
+    body += 'return JSON.stringify({success:true,operation:"placeSymbol",name:instance.name,symbol:sym.name,position:instance.position});';
+  } else if (operation === "applyPattern") {
+    const patternName = requireString(params, "patternName");
+    body += 'var item=__item(d,' + js(target) + ');var pattern=d.patterns.getByName(' + js(patternName) + ');var pc=new PatternColor();pc.pattern=pattern;';
+    if (params.rotation !== undefined) body += 'pc.rotation=' + finiteNumber(params.rotation) + ';';
+    if (params.scaleFactor !== undefined) body += 'pc.scaleFactor=[' + finiteNumber(params.scaleFactor,100) + ',' + finiteNumber(params.scaleFactor,100) + '];';
+    body += 'item.filled=true;item.fillColor=pc;return JSON.stringify({success:true,operation:"applyPattern",item:item.name,pattern:pattern.name});';
+  } else {
+    throw new Error("illustrator.symbols.patterns operation must be createSymbol, placeSymbol or applyPattern");
+  }
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
+function imageTrace(params: Record<string, unknown>): Record<string, unknown> {
+  const path = requireString(params, "path");
+  const preset = optionalString(params, "preset");
+  const expand = params.expand !== false;
+  const mode = String(params.mode ?? "color").toLowerCase();
+  let body = HELPERS + 'var d=__doc();var file=new File(' + js(path) + ');if(!file.exists)throw new Error("Trace source not found");var placed=d.placedItems.add();placed.file=file;';
+  if (Array.isArray(params.position)) body += 'placed.position=' + js(params.position) + ';';
+  body += 'var plugin=placed.trace();if(!plugin||!plugin.tracing)throw new Error("Image trace failed to start");var options=plugin.tracing.tracingOptions;';
+  if (preset) body += 'if(!options.loadFromPreset(' + js(preset) + '))throw new Error("Tracing preset could not be loaded");';
+  body += 'options.tracingMode=' + (mode==="bw"||mode==="blackandwhite" ? "TracingModeType.TRACINGMODEBLACKANDWHITE" : mode==="gray"||mode==="grayscale" ? "TracingModeType.TRACINGMODEGRAY" : "TracingModeType.TRACINGMODECOLOR") + ';';
+  if (params.maxColors !== undefined) body += 'options.maxColors=' + Math.max(2,Math.min(256,integer(params.maxColors,16))) + ';';
+  if (params.threshold !== undefined) body += 'options.threshold=' + Math.max(0,Math.min(255,integer(params.threshold,128))) + ';';
+  if (params.ignoreWhite !== undefined) body += 'options.ignoreWhite=' + (params.ignoreWhite === true ? "true" : "false") + ';';
+  if (params.pathFitting !== undefined) body += 'options.pathFitting=' + Math.max(0,Math.min(10,finiteNumber(params.pathFitting,2))) + ';';
+  body += 'app.redraw();var result=plugin;';
+  if (expand) body += 'result=plugin.tracing.expandTracing(false);';
+  body += 'return JSON.stringify({success:true,expanded:' + (expand ? "true" : "false") + ',typename:result.typename,name:result.name||null});';
+  return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+}
+
 function exportAssets(params: Record<string, unknown>): Record<string, unknown> {
   const path = requireString(params, "path");
   const format = String(params.format ?? "png").toLowerCase();
@@ -98,7 +193,12 @@ function exportAssets(params: Record<string, unknown>): Record<string, unknown> 
   if (format === "png") body += 'var o=new ExportOptionsPNG24();o.antiAliasing=true;o.transparency=' + (params.transparency !== false ? "true" : "false") + ';d.exportFile(f,ExportType.PNG24,o);';
   else if (format === "jpg" || format === "jpeg") body += 'var o=new ExportOptionsJPEG();o.qualitySetting=' + Math.max(0,Math.min(100,integer(params.quality,90))) + ';d.exportFile(f,ExportType.JPEG,o);';
   else if (format === "svg") body += 'var o=new ExportOptionsSVG();d.exportFile(f,ExportType.SVG,o);';
-  else throw new Error("illustrator.export.assets format must be png, jpg or svg");
+  else if (format === "pdf") {
+    body += 'var o=new PDFSaveOptions();o.preserveEditability=' + (params.preserveEditability !== false ? "true" : "false") + ';';
+    if (typeof params.preset === "string" && params.preset) body += 'o.pDFPreset=' + js(params.preset) + ';';
+    body += 'd.saveAs(f,o);';
+  }
+  else throw new Error("illustrator.export.assets format must be png, jpg, svg or pdf");
   body += 'return JSON.stringify({success:true,path:f.fsName,format:' + js(format) + '});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
@@ -111,6 +211,8 @@ export function compileIllustrator(capability: string, params: Record<string, un
     case "illustrator.vector.transform": return vectorTransform(params);
     case "illustrator.appearance.style": return appearanceStyle(params);
     case "illustrator.text.manage": return textManage(params);
+    case "illustrator.symbols.patterns": return symbolsPatterns(params);
+    case "illustrator.image.trace": return imageTrace(params);
     case "illustrator.export.assets": return exportAssets(params);
     default: return params;
   }
