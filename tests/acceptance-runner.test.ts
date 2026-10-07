@@ -14,5 +14,5 @@ test("real-host acceptance runner enforces destructive safety and visual review 
   assert.match(source, /creative\.repair\.plan/);
   assert.match(source, /technical_output_validation_failed/);
   assert.match(source, /awaiting_human_or_agent_visual_review/);
-  assert.doesNotMatch(source, /verdict:\s*"pass"/);
+  assert.doesNotMatch(source, /runtime\.execute\("creative\.job\.review"/);
 });
