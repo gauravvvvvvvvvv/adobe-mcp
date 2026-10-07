@@ -426,6 +426,113 @@ async function manageSelection(params) {
   });
 }
 
+async function paintRetouch(params) {
+  return runModal("retouch", async () => {
+    const doc = requireDocument();
+    const operation = String(params.operation || "contentAwareFill");
+    let layer = selectedLayer();
+
+    if (params.duplicateBefore === true) {
+      layer = await layer.duplicate();
+      if (typeof params.layerName === "string" && params.layerName) layer.name = params.layerName;
+    }
+
+    if (operation === "contentAwareFill") {
+      const selection = doc.selection;
+      if (params.bounds) {
+        if (!selection.selectRectangle) throw new Error("Selection DOM requires Photoshop 25+ for typed content-aware bounds");
+        await selection.selectRectangle(bounds(params.bounds), constants.SelectionType.REPLACE);
+      }
+      if (params.expand !== undefined) {
+        if (!selection.expand) throw new Error("Selection expand requires Photoshop 25+");
+        await selection.expand(Math.max(0, numeric(params.expand)));
+      }
+      if (params.feather !== undefined) {
+        if (!selection.feather) throw new Error("Selection feather requires Photoshop 25+");
+        await selection.feather(Math.max(0, numeric(params.feather)));
+      }
+
+      const opacity = Math.max(0, Math.min(100, numeric(params.opacity, 100)));
+      const result = await action.batchPlay([{
+        _obj: "fill",
+        using: { _enum: "fillContents", _value: "contentAware" },
+        opacity: { _unit: "percentUnit", _value: opacity },
+        mode: { _enum: "blendMode", _value: "normal" },
+        _options: { dialogOptions: "silent" }
+      }], { synchronousExecution: false, modalBehavior: "execute" });
+
+      if (params.deselect !== false) {
+        if (selection.deselect) await selection.deselect();
+        else await action.batchPlay([{
+          _obj: "set",
+          _target: [{ _ref: "channel", _property: "selection" }],
+          to: { _enum: "ordinal", _value: "none" },
+          _options: { dialogOptions: "silent" }
+        }], {});
+      }
+      return { operation, layer: compactLayer(layer), opacity, result };
+    }
+
+    if (operation === "clone" || operation === "heal") {
+      if (!Array.isArray(params.points) || params.points.length < 2) {
+        throw new Error("clone/heal requires points with at least two anchors");
+      }
+      const source = params.sourceOrigin;
+      if (!source || typeof source !== "object") throw new Error("clone/heal requires sourceOrigin {x,y}");
+
+      const PathPointInfo = app.PathPointInfo || photoshop.PathPointInfo;
+      const SubPathInfo = app.SubPathInfo || photoshop.SubPathInfo;
+      if (!PathPointInfo || !SubPathInfo) throw new Error("Photoshop path constructors unavailable");
+
+      const pointInfos = params.points.map((point) => {
+        const anchor = Array.isArray(point)
+          ? [numeric(point[0]), numeric(point[1])]
+          : [numeric(point.x), numeric(point.y)];
+        const left = !Array.isArray(point) && Array.isArray(point.leftDirection)
+          ? [numeric(point.leftDirection[0]), numeric(point.leftDirection[1])]
+          : anchor;
+        const right = !Array.isArray(point) && Array.isArray(point.rightDirection)
+          ? [numeric(point.rightDirection[0]), numeric(point.rightDirection[1])]
+          : anchor;
+        const item = new PathPointInfo();
+        item.anchor = anchor;
+        item.leftDirection = left;
+        item.rightDirection = right;
+        item.kind = (!Array.isArray(point) && point.smooth === true)
+          ? constants.PointKind.SMOOTHPOINT
+          : constants.PointKind.CORNERPOINT;
+        return item;
+      });
+
+      const subPath = new SubPathInfo();
+      subPath.closed = params.closed === true;
+      subPath.operation = constants.ShapeOperation.SHAPEXOR;
+      subPath.entireSubPath = pointInfos;
+
+      const path = doc.pathItems.add(
+        typeof params.pathName === "string" ? params.pathName : "Adobe MCP Retouch",
+        [subPath]
+      );
+      try {
+        const tool = operation === "clone" ? constants.ToolType.CLONESTAMP : constants.ToolType.HEALINGBRUSH;
+        const sourceOrigin = { x: numeric(source.x), y: numeric(source.y) };
+        await path.strokePath(tool, params.simulatePressure === true, sourceOrigin);
+      } finally {
+        try { await path.remove(); } catch {}
+      }
+      return {
+        operation,
+        layer: compactLayer(layer),
+        points: pointInfos.length,
+        sourceOrigin: { x: numeric(source.x), y: numeric(source.y) },
+        simulatePressure: params.simulatePressure === true
+      };
+    }
+
+    throw new Error("Supported retouch operations: contentAwareFill, clone, heal");
+  });
+}
+
 async function applyAdjustment(params) {
   return runModal("adjustment", async () => {
     const doc = requireDocument();
@@ -593,6 +700,7 @@ async function dispatch(op, params = {}) {
   if (op === "photoshop.layers.manage") return manageLayer(params);
   if (op === "photoshop.text.manage") return manageText(params);
   if (op === "photoshop.selection.mask") return manageSelection(params);
+  if (op === "photoshop.paint.retouched") return paintRetouch(params);
   if (op === "photoshop.adjustments.apply") return applyAdjustment(params);
   if (op === "photoshop.filters.apply") return applyFilter(params);
   if (op === "photoshop.smart-objects.manage") return manageSmartObject(params);

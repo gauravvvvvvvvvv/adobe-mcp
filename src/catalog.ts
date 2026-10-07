@@ -65,7 +65,7 @@ export const CAPABILITIES: Capability[] = [
   C("photoshop", "document.manage", "Manage documents", "Create/open/save/resize/crop/rotate documents, canvas and color modes.", ["document","canvas"]),
   C("photoshop", "layers.manage", "Manage layers", "Create, group, reorder, duplicate, rename, transform and configure layer properties.", ["layers","groups"]),
   C("photoshop", "selection.mask", "Create selections and masks", "Select by geometry/color/content, refine selections and create/edit layer masks.", ["selection","mask"]),
-  C("photoshop", "paint.retouched", "Paint and retouch", "Run brush/heal/clone/content-aware style operations when exposed by the host API or recorded actions.", ["paint","retouch"]),
+  C("photoshop", "paint.retouched", "Paint and retouch", "Run typed content-aware fill and path-driven Clone Stamp / Healing Brush cleanup operations.", ["paint","retouch","heal","clone","content-aware"], "destructive"),
   C("photoshop", "adjustments.apply", "Apply adjustments", "Curves, levels, hue/saturation, exposure, color balance and adjustment layers.", ["adjustment","color"]),
   C("photoshop", "filters.apply", "Apply filters", "Apply native/installed filters, smart filters and batchPlay-described operations.", ["filters","effects"]),
   C("photoshop", "smart-objects.manage", "Manage smart objects", "Create, replace, relink, transform and edit smart objects.", ["smart-object"]),

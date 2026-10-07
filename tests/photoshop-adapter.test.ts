@@ -19,6 +19,11 @@ test("Photoshop UXP adapter parses and requests autonomous local path access", a
   assert.match(source, /characterStyle/);
   assert.match(source, /paragraphStyle/);
   assert.match(source, /applyAddNoise/);
+  assert.match(source, /async function paintRetouch/);
+  assert.match(source, /contentAware/);
+  assert.match(source, /strokePath/);
+  assert.match(source, /ToolType\.CLONESTAMP/);
+  assert.match(source, /ToolType\.HEALINGBRUSH/);
   assert.match(source, /saveAs\.png/);
   assert.match(source, /executeAsModal/);
 
