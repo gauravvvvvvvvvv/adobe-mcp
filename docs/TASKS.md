@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: cached bulk asset fingerprint analysis after `353c4848`.
+Last updated commit target: Premiere crop and animated time-remap semantics after `545b9bd9`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -42,8 +42,8 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Typed project lifecycle and organization: open/new/close/save/saveAs, import media, bins and sequence activation/creation.
 - [~] Typed timeline assembly from explicit source ranges, tracks and placement times.
 - [~] Typed insert/overwrite assembly plus move/trim/delete/ripple-delete/set-enabled and QE razor (single/all tracks); lift/extract remain pending because Premiere exposes no stable documented direct API.
-- [~] QE speed/reverse/maintain-pitch/ripple primitive added; animated time-remapping remains pending.
-- [~] Generic component/property keyframes support Motion/Opacity and other exposed properties; crop-specific helper pending.
+- [x] QE constant speed/reverse/maintain-pitch/ripple plus typed animated Time Remapping Speed keyframes.
+- [x] Generic component/property keyframes plus first-class static/animated Crop effect controls.
 - [~] Typed QE effect and transition application with named parameter writes.
 - [~] Lumetri Color parameter writes and Input LUT path support.
 - [~] Clip volume, pan, volume keyframes, computed ducking curves and whole-track mute are typed; track mixer automation/effect-send helpers remain pending.

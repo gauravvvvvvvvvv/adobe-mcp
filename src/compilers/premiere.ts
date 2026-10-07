@@ -146,10 +146,61 @@ function motionAnimate(params: Record<string, unknown>): Record<string, unknown>
   const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
   const sequence = optionalString(params, "sequence");
   const keyframes = objectArray(params.keyframes);
-  if (!keyframes.length) throw new Error("keyframes_required");
-  const frames = keyframes.map((frame) => ({ time: Math.max(0, finiteNumber(frame.time)), component: typeof frame.component === "string" ? frame.component : "Motion", property: requireString(frame, "property"), value: frame.value }));
-  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var clip=__clip(seq,' + js(target) + ');var frames=' + js(frames) + ';var changed=[];';
-  body += 'for(var i=0;i<frames.length;i++){var f=frames[i];var comp=__component(clip,f.component);if(!comp)throw new Error("Component not found: "+f.component);var prop=__property(comp,f.property);if(!prop)throw new Error("Property not found: "+f.property);__setKey(prop,f.time,f.value);changed.push({time:f.time,component:f.component,property:f.property});}return JSON.stringify({success:true,changed:changed});';
+  const frames = keyframes.map((frame) => ({
+    time: Math.max(0, finiteNumber(frame.time)),
+    component: typeof frame.component === "string" ? frame.component : "Motion",
+    property: requireString(frame, "property"),
+    value: frame.value
+  }));
+
+  const crop = params.crop && typeof params.crop === "object" && !Array.isArray(params.crop)
+    ? params.crop as Record<string, unknown>
+    : {};
+  const cropStatic: Record<string, number> = {};
+  for (const name of ["Left", "Right", "Top", "Bottom"] as const) {
+    const raw = crop[name.toLowerCase()] ?? crop[name];
+    if (raw !== undefined) cropStatic[name] = Math.max(0, Math.min(100, finiteNumber(raw)));
+  }
+
+  const cropFrames = objectArray(params.cropKeyframes).flatMap((frame) => {
+    const values: Record<string, number> = {};
+    for (const name of ["Left", "Right", "Top", "Bottom"] as const) {
+      const raw = frame[name.toLowerCase()] ?? frame[name];
+      if (raw !== undefined) values[name] = Math.max(0, Math.min(100, finiteNumber(raw)));
+    }
+    return Object.keys(values).length
+      ? [{ time: Math.max(0, finiteNumber(frame.time)), values }]
+      : [];
+  });
+
+  const timeRemap = objectArray(params.timeRemap).map((frame) => ({
+    time: Math.max(0, finiteNumber(frame.time)),
+    speedPercent: Math.max(0.01, finiteNumber(frame.speedPercent ?? frame.speed, 100))
+  }));
+
+  if (!frames.length && !Object.keys(cropStatic).length && !cropFrames.length && !timeRemap.length) {
+    throw new Error("keyframes_crop_or_timeRemap_required");
+  }
+
+  const videoTarget = { ...target, trackType: "video" };
+  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var clip=__clip(seq,' + js(videoTarget) + ');var frames=' + js(frames) + ';var changed=[];';
+  body += 'for(var i=0;i<frames.length;i++){var f=frames[i];var comp=__component(clip,f.component);if(!comp)throw new Error("Component not found: "+f.component);var prop=__property(comp,f.property);if(!prop)throw new Error("Property not found: "+f.property);__setKey(prop,f.time,f.value);changed.push({time:f.time,component:f.component,property:f.property});}';
+
+  if (Object.keys(cropStatic).length || cropFrames.length) {
+    body += 'var cropComp=__component(clip,"Crop");if(!cropComp)cropComp=__ensureVideoEffect(seq,' + js(videoTarget) + ',"Crop").component;';
+    if (Object.keys(cropStatic).length) {
+      body += 'var cropWrites=__setNamedProperties(cropComp,' + js(cropStatic) + ');for(var cw=0;cw<cropWrites.length;cw++){if(!cropWrites[cw].ok)throw new Error("Crop property write failed: "+cropWrites[cw].name+" "+cropWrites[cw].error);changed.push({component:"Crop",property:cropWrites[cw].name,value:cropWrites[cw].value});}';
+    }
+    if (cropFrames.length) {
+      body += 'var cropFrames=' + js(cropFrames) + ';for(var cfi=0;cfi<cropFrames.length;cfi++){var cf=cropFrames[cfi];for(var cropName in cf.values){if(!cf.values.hasOwnProperty(cropName))continue;var cropProp=__property(cropComp,cropName);if(!cropProp)throw new Error("Crop property not found: "+cropName);__setKey(cropProp,cf.time,cf.values[cropName]);changed.push({time:cf.time,component:"Crop",property:cropName,value:cf.values[cropName]});}}';
+    }
+  }
+
+  if (timeRemap.length) {
+    body += 'var remapComp=__component(clip,"Time Remapping");if(!remapComp)throw new Error("Time Remapping component not found on clip");var speedProp=__property(remapComp,"Speed");if(!speedProp)throw new Error("Time Remapping Speed property not found");var remapFrames=' + js(timeRemap) + ';for(var tri=0;tri<remapFrames.length;tri++){var tr=remapFrames[tri];__setKey(speedProp,tr.time,tr.speedPercent);changed.push({time:tr.time,component:"Time Remapping",property:"Speed",value:tr.speedPercent});}';
+  }
+
+  body += 'return JSON.stringify({success:true,changed:changed,crop:' + js(cropStatic) + ',cropKeyframes:' + js(cropFrames.length) + ',timeRemapKeyframes:' + js(timeRemap.length) + '});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 

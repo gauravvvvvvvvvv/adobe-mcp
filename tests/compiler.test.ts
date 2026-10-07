@@ -82,6 +82,35 @@ test("Premiere motion, audio and export compilers emit host operations", () => {
   assert.match(render, /encodeSequence/);
 });
 
+test("Premiere crop and time remapping compile into typed property animation", () => {
+  const crop = scriptFor("premiere.motion.animate", {
+    target: { trackIndex: 0, clipIndex: 0 },
+    crop: { left: 5, right: 7 },
+    cropKeyframes: [
+      { time: 0, top: 0, bottom: 0 },
+      { time: 1, top: 12, bottom: 8 }
+    ]
+  });
+  parses(crop);
+  assert.match(crop, /Effect not found: /);
+  assert.match(crop, /"Crop"/);
+  assert.match(crop, /Crop property not found/);
+  assert.match(crop, /setValueAtKey/);
+
+  const remap = scriptFor("premiere.motion.animate", {
+    target: { trackIndex: 0, clipIndex: 0 },
+    timeRemap: [
+      { time: 0, speedPercent: 100 },
+      { time: 1, speedPercent: 250 },
+      { time: 2, speedPercent: 100 }
+    ]
+  });
+  parses(remap);
+  assert.match(remap, /Time Remapping/);
+  assert.match(remap, /Speed property not found/);
+  assert.match(remap, /250/);
+});
+
 test("Premiere razor, pan, ducking and track mute compile into safe host operations", () => {
   const razor = scriptFor("premiere.timeline.edit", {
     operation: "razor",
