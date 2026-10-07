@@ -1,0 +1,36 @@
+{
+  "confirmDisposable": true,
+  "confirmOverwriteOutput": false,
+  "title": "Premiere master-edit acceptance",
+  "prompt": "Assemble the configured selects into a clean professional master, apply finishing operations, export, validate, and generate review artifacts.",
+  "workingProject": "D:/adobe-mcp-acceptance/project-copy.prproj",
+  "sequence": "Acceptance Sequence",
+  "clips": [
+    {
+      "path": "D:/adobe-mcp-acceptance/source-a.mp4",
+      "sourceIn": 1,
+      "sourceOut": 4.5,
+      "videoTrack": 0,
+      "audioTrack": 0
+    },
+    {
+      "path": "D:/adobe-mcp-acceptance/source-b.mp4",
+      "sourceIn": 2,
+      "sourceOut": 5,
+      "videoTrack": 0,
+      "audioTrack": 0
+    }
+  ],
+  "referencePath": "D:/adobe-mcp-acceptance/reference.mp4",
+  "outputPath": "D:/adobe-mcp-acceptance/out/master.mp4",
+  "presetPath": "D:/adobe-mcp-acceptance/presets/h264.epr",
+  "reviewDir": "D:/adobe-mcp-acceptance/review",
+  "expected": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "audioRequired": true,
+    "minSizeBytes": 100000
+  },
+  "exerciseRepairPlanner": true
+}

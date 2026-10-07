@@ -15,6 +15,20 @@ Record the Adobe app versions, OS version, Node version and the final commit SHA
 - [ ] Open a supported Adobe host after MCP startup; confirm it appears connected without restarting MCP.
 - [ ] Close and reopen that Adobe host; confirm it reconnects without restarting MCP.
 
+## Automated real-host Premiere acceptance harness
+
+For a deterministic real-host run, copy `docs/acceptance-premiere.example.json` and fill in real paths. **Never point this at your only project copy.** The runner requires `"confirmDisposable": true`.
+
+Stop any other Adobe MCP process so port 38470 is free, then run:
+
+```bash
+npm run accept:premiere -- --scenario D:/path/to/acceptance.json
+```
+
+The harness starts the same local broker, waits for Premiere to reconnect, opens the expendable project, checkpoints it, expands/runs `premiere.master-edit`, waits for the real export, validates it, generates review artifacts, exercises the repair planner with an intentionally wrong delivery expectation, and writes `acceptance-report.json` plus `AGENT_REVIEW.md`.
+
+It deliberately does **not** auto-pass creative quality. A vision-capable Codex/Claude session must inspect the proxy/contact sheet/audio evidence and submit `creative.job.review` explicitly.
+
 ## Premiere Pro smoke test
 
 Use expendable media/project copies.
@@ -96,13 +110,15 @@ Pass condition: created artwork is editable vector content and exports correctly
 
 ## InDesign smoke test
 
-Current v1 scope is connection/context only.
+- [ ] Open InDesign and confirm universal CEP bridge connects.
+- [ ] Inspect compact document context.
+- [ ] Create/open/save a disposable document.
+- [ ] Create pages and text/image frames.
+- [ ] Apply paragraph/character/object styles.
+- [ ] Relink/update a placed asset.
+- [ ] Export a disposable PDF.
 
-- [ ] Open InDesign.
-- [ ] Confirm universal CEP bridge connects.
-- [ ] `indesign.context.inspect` returns compact document context.
-
-Do not claim broader InDesign editing coverage until typed capabilities are implemented and accepted.
+Pass condition: layout mutations remain editable and export completes.
 
 ## End-to-end one-prompt acceptance
 

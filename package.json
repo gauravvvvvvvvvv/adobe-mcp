@@ -7,7 +7,8 @@
   "main": "dist/index.js",
   "bin": {
     "adobe-mcp": "dist/index.js",
-    "adobe-mcp-setup": "dist/setup-client.js"
+    "adobe-mcp-setup": "dist/setup-client.js",
+    "adobe-mcp-accept": "dist/acceptance-runner.js"
   },
   "files": [
     "dist",
@@ -33,7 +34,8 @@
     "photoshop:dev:macos": "bash scripts/enable-photoshop-dev-macos.sh",
     "setup:codex": "tsx src/setup-client.ts --client codex",
     "setup:claude": "tsx src/setup-client.ts --client claude",
-    "prepack": "npm run check"
+    "prepack": "npm run check",
+    "accept:premiere": "tsx src/acceptance-runner.ts"
   },
   "keywords": [
     "mcp",

@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Premiere project lifecycle semantics after `4b4e23f8`.
+Last updated commit target: guarded real-host Premiere acceptance runner after `6acc1d76`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -17,8 +17,8 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Local review proxy/contact-sheet/waveform generation.
 - [x] Deterministic media-output validation.
 - [x] Review cannot pass without required acceptance criteria.
-- [~] Code-backed `premiere.master-edit` recipe now assembles/finishes/QA/exports; real Premiere host acceptance remains pending.
-- [~] `creative.repair.plan` converts failed review/media validation into targeted patch capabilities and re-check steps; deliberate broken-render real-host acceptance remains pending.
+- [~] Code-backed `premiere.master-edit` plus `adobe-mcp-accept` now automate guarded real-host open/checkpoint/edit/export/validation/review handoff; an actual workstation run is still required to mark host acceptance complete.
+- [~] `creative.repair.plan` is exercised by the real-host harness using an intentionally incorrect delivery expectation; actual vision-guided repair acceptance still requires a workstation run.
 - [~] CEP installers are scripted on Windows/macOS; Photoshop local-dev setup is scripted, while Adobe-supported distributable `.ccx` packaging must be produced with UXP Developer Tool on a machine that has it.
 
 ## Runtime / agent workflow
@@ -134,4 +134,4 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Manual AE smoke-test checklist in `docs/ACCEPTANCE.md`.
 - [x] Static Photoshop adapter regression plus real-host smoke checklist in `docs/ACCEPTANCE.md`.
 - [x] Manual Illustrator smoke-test checklist in `docs/ACCEPTANCE.md`.
-- [x] Full one-prompt review/repair/checkpoint acceptance checklist in `docs/ACCEPTANCE.md`.
+- [x] Full one-prompt review/repair/checkpoint acceptance checklist plus guarded `adobe-mcp-accept` real-host Premiere runner and scenario template.
