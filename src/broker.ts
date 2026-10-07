@@ -35,7 +35,7 @@ export class LocalBridgeBroker {
 
     this.server = createServer((req, res) => {
       if (req.url === "/health") {
-        const body = JSON.stringify({ ok: true, port: this.listenPort, apps: this.state.all() });
+        const body = JSON.stringify({ ok: true, port: this.listenPort, apps: this.state.statuses() });
         res.writeHead(200, { "content-type": "application/json", "content-length": Buffer.byteLength(body) });
         res.end(body);
         return;

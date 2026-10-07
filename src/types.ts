@@ -64,4 +64,6 @@ export interface AppSnapshot {
   capabilities: string[];
   lastSeenAt?: string;
   context?: unknown;
+  contextHash?: string;
+  contextUpdatedAt?: string;
 }

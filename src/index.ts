@@ -22,7 +22,7 @@ const server = new McpServer(
   { name: "adobe-mcp", version: ADOBE_MCP_VERSION },
   {
     instructions:
-      "Adobe MCP is local-first. Start with adobe_status, then search_capabilities instead of requesting a huge tool list. Use execute for one semantic action and batch_execute for multi-step edits. Prefer compact high-level intent and let the host adapter expand it into native Adobe operations. Inspect current context before destructive or timeline-sensitive work. Host adapters reconnect to the local broker, so opening/reopening an Adobe app should not require restarting the MCP server."
+      "Adobe MCP is local-first. Start with adobe_status, then search_capabilities instead of requesting a huge tool list. Use execute for one semantic action and batch_execute for multi-step edits. Prefer compact high-level intent and let the host adapter expand it into native Adobe operations. Inspect current context before destructive or timeline-sensitive work. Reuse inspect_context.contextHash as knownHash on later reads so unchanged project context is not resent. Host adapters reconnect to the local broker, so opening/reopening an Adobe app should not require restarting the MCP server."
   }
 );
 
@@ -31,13 +31,13 @@ const appSchema = z.enum(ADOBE_APPS);
 server.registerTool(
   "adobe_status",
   {
-    description: "Show detected Adobe installs, connected host adapters and local bridge status.",
+    description: "Show detected Adobe installs, connected host adapters and local bridge status. Does not include full project context.",
     annotations: readOnly
   },
   async () => json({
     version: ADOBE_MCP_VERSION,
     bridge: { host: "127.0.0.1", port: broker.port },
-    adapters: broker.state.all(),
+    adapters: broker.state.statuses(),
     installs: await discoverAdobeInstalls()
   })
 );
@@ -72,19 +72,26 @@ server.registerTool(
 server.registerTool(
   "inspect_context",
   {
-    description: "Return cached context for one connected Adobe app. If fresh=true, asks the host adapter to refresh it first.",
+    description: "Return compact cached context for one Adobe app. Pass the previous contextHash as knownHash to avoid resending unchanged context.",
     inputSchema: z.object({
       app: appSchema,
-      fresh: z.boolean().optional().default(false)
+      fresh: z.boolean().optional().default(false),
+      knownHash: z.string().regex(/^[a-f0-9]{64}$/i).optional()
     }),
     annotations: readOnly
   },
-  async ({ app, fresh }) => {
+  async ({ app, fresh, knownHash }) => {
     if (fresh) {
       const result = await broker.invoke(app, `${app}.context.inspect`, {});
       if (result.ok) broker.state.setContext(app, result.data);
     }
-    return json(broker.state.get(app));
+
+    const snapshot = broker.state.get(app);
+    if (knownHash && snapshot.contextHash === knownHash) {
+      const { context: _context, ...metadata } = snapshot;
+      return json({ ...metadata, unchanged: true });
+    }
+    return json(snapshot);
   }
 );
 
