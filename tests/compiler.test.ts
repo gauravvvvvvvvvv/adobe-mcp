@@ -108,6 +108,32 @@ test("Premiere motion, audio and export compilers emit host operations", () => {
   assert.match(render, /encodeSequence/);
 });
 
+test("Premiere Lumetri and MOGRT operations expose compact readback", () => {
+  const grade = scriptFor("premiere.color.grade", {
+    target: { trackIndex: 0, clipIndex: 0 },
+    adjustments: { Exposure: 0.5, Contrast: 12 },
+    lutPath: "C:\\looks\\show.cube"
+  });
+  parses(grade);
+  assert.match(grade, /__componentSnapshot/);
+  assert.match(grade, /Input LUT file not found/);
+
+  const inspectGrade = scriptFor("premiere.color.grade", {
+    operation: "inspect",
+    target: { trackIndex: 0, clipIndex: 0 }
+  });
+  parses(inspectGrade);
+  assert.match(inspectGrade, /present/);
+
+  const inspectGraphic = scriptFor("premiere.graphics.manage", {
+    operation: "inspect",
+    target: { trackIndex: 1, clipIndex: 0 }
+  });
+  parses(inspectGraphic);
+  assert.match(inspectGraphic, /getMGTComponent/);
+  assert.match(inspectGraphic, /__componentSnapshot/);
+});
+
 test("Premiere crop and time remapping compile into typed property animation", () => {
   const crop = scriptFor("premiere.motion.animate", {
     target: { trackIndex: 0, clipIndex: 0 },

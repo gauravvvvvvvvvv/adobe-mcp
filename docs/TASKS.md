@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Codex/Claude one-prompt operating playbook after `71b0250a`.
+Last updated commit target: Premiere Lumetri/MOGRT compact property readback after `fd50eeaa`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -46,11 +46,11 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] QE constant speed/reverse/maintain-pitch/ripple plus typed animated Time Remapping Speed keyframes.
 - [x] Generic component/property keyframes plus first-class static/animated Crop effect controls.
 - [x] Typed QE video/audio effect and transition application with named parameter writes where the installed effect exposes writable properties.
-- [~] Lumetri Color parameter writes and Input LUT path support.
+- [x] Lumetri Color apply/inspect with named parameter writes, verified LUT file path handling and compact component/property readback.
 - [~] Clip volume, pan, volume keyframes, computed ducking curves and whole-track mute are typed; track mixer automation/effect-send helpers remain pending.
 - [~] SRT/project-item import into caption track with caption-format mapping; styling/readback remains limited by Premiere scripting API.
-- [~] MOGRT import, named properties and best-effort Source Text payload mutation.
-- [~] Adobe Media Encoder handoff with explicit .epr preset and output path.
+- [x] MOGRT import/inspect, named property writes, compact property readback and best-effort Source Text payload mutation for templates exposing editable text.
+- [x] Adobe Media Encoder handoff with explicit .epr preset/output path plus separate native Media Encoder queue adapter; final-file completion is verified by the creative/acceptance runtime.
 - [x] High-level rough-cut recipe.
 - [x] J/L-cut recipe blueprint with independently addressable audio/video trim operations.
 - [x] Beat-cut / music-sync recipe using explicit beat timestamps.

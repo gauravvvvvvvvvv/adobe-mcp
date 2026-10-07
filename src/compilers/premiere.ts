@@ -18,6 +18,8 @@ const HELPERS = [
 'function __qeClip(seq,spec){try{app.enableQE();}catch(e){throw new Error("QE API unavailable: "+e);}var qseq=qe.project.getActiveSequence();if(!qseq)throw new Error("QE active sequence unavailable");var dom=__clip(seq,spec);var type=String(spec.trackType||"video").toLowerCase();var ti=Number(spec.trackIndex||0);var qt=type==="audio"?qseq.getAudioTrackAt(ti):qseq.getVideoTrackAt(ti);if(!qt)throw new Error("QE track unavailable");var targetTicks=null;try{targetTicks=String(dom.start.ticks);}catch(_){}var best=null,bestDelta=null;for(var i=0;i<qt.numItems;i++){var item=qt.getItemAt(i);if(!item)continue;try{if(String(item.type)!=="Clip")continue;}catch(_){}var ticks=null;try{ticks=String(item.start.ticks);}catch(_){}if(targetTicks!==null&&ticks===targetTicks)return {dom:dom,qe:item,qeTrack:qt};if(ticks!==null&&targetTicks!==null){var d=Math.abs(parseInt(ticks,10)-parseInt(targetTicks,10));if(best===null||d<bestDelta){best=item;bestDelta=d;}}}if(best)return {dom:dom,qe:best,qeTrack:qt};throw new Error("Could not map DOM clip to QE clip");}',
 'function __effectComponent(clip,name,beforeCount){var needle=__norm(name);for(var i=0;i<clip.components.numItems;i++){var comp=clip.components[i];if(__norm(comp.displayName)===needle||__norm(comp.matchName)===needle)return comp;}if(clip.components.numItems>beforeCount)return clip.components[clip.components.numItems-1];return null;}',
 'function __setNamedProperties(component,values){var results=[];for(var key in values){if(!values.hasOwnProperty(key))continue;var want=__norm(key),found=null;for(var i=0;i<component.properties.numItems;i++){var p=component.properties[i];if(__norm(p.displayName)===want||__norm(p.matchName)===want){found=p;break;}}if(!found){results.push({name:key,ok:false,error:"property_not_found"});continue;}try{found.setValue(values[key],true);results.push({name:key,ok:true,value:values[key]});}catch(e){results.push({name:key,ok:false,error:String(e)});}}return results;}',
+'function __safeValue(v){if(v===null||v===undefined||typeof v==="string"||typeof v==="number"||typeof v==="boolean")return v;if(v instanceof Array){var a=[];for(var ai=0;ai<v.length&&ai<32;ai++)a.push(__safeValue(v[ai]));return a;}try{return String(v);}catch(_){return "[value]";}}',
+'function __componentSnapshot(component){if(!component)return null;var out={displayName:String(component.displayName||""),matchName:String(component.matchName||""),properties:[]};for(var i=0;i<component.properties.numItems;i++){var p=component.properties[i],v=null,err=null;try{v=__safeValue(p.getValue());}catch(e){err=String(e);}out.properties.push({index:i,displayName:String(p.displayName||""),matchName:String(p.matchName||""),value:v,error:err});}return out;}',
 'function __ensureVideoEffect(seq,spec,effectName){var mapped=__qeClip(seq,spec);var getter=String(spec.trackType||"video").toLowerCase()==="audio"?"getAudioEffectByName":"getVideoEffectByName";var effect=qe.project[getter](String(effectName));if(!effect)throw new Error("Effect not found: "+effectName);var before=mapped.dom.components.numItems;if(getter==="getAudioEffectByName")mapped.qe.addAudioEffect(effect);else mapped.qe.addVideoEffect(effect);var comp=__effectComponent(mapped.dom,effectName,before);if(!comp)throw new Error("Effect added but component could not be resolved: "+effectName);return {clip:mapped.dom,component:comp,qe:mapped.qe};}'
 
 ].join("\n");
@@ -298,22 +300,39 @@ function effectsApply(params: Record<string, unknown>): Record<string, unknown> 
 }
 
 function colorGrade(params: Record<string, unknown>): Record<string, unknown> {
+  const operation = String(params.operation ?? "apply");
   const sequence = optionalString(params, "sequence");
   const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+  const videoTarget = { ...target, trackType: "video" };
   const adjustments = params.adjustments && typeof params.adjustments === "object" ? params.adjustments as Record<string, unknown> : {};
   const lutPath = optionalString(params, "lutPath");
-  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var applied=__ensureVideoEffect(seq,' + js({ ...target, trackType: "video" }) + ',"Lumetri Color");var values=' + js(adjustments) + ';var results=__setNamedProperties(applied.component,values);';
-  if (lutPath) {
-    body += 'var lutResult=__setNamedProperties(applied.component,{"Input LUT":' + js(lutPath) + '});for(var lr=0;lr<lutResult.length;lr++)results.push(lutResult[lr]);';
+  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');';
+
+  if (operation === "inspect") {
+    body += 'var clip=__clip(seq,' + js(videoTarget) + ');var component=__component(clip,"Lumetri Color");return JSON.stringify({success:true,operation:"inspect",present:!!component,component:__componentSnapshot(component)});';
+    return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
   }
-  body += 'return JSON.stringify({success:true,effect:"Lumetri Color",adjustments:results,lutPath:' + (lutPath ? js(lutPath) : "null") + '});';
+  if (operation !== "apply") throw new Error("premiere.color.grade operation must be apply or inspect");
+
+  body += 'var applied=__ensureVideoEffect(seq,' + js(videoTarget) + ',"Lumetri Color");var values=' + js(adjustments) + ';var results=__setNamedProperties(applied.component,values);';
+  if (lutPath) {
+    body += 'var lutFile=new File(' + js(lutPath) + ');if(!lutFile.exists)throw new Error("Input LUT file not found");var lutResult=__setNamedProperties(applied.component,{"Input LUT":lutFile.fsName});for(var lr=0;lr<lutResult.length;lr++)results.push(lutResult[lr]);';
+  }
+  body += 'return JSON.stringify({success:true,operation:"apply",effect:"Lumetri Color",adjustments:results,lutPath:' + (lutPath ? js(lutPath) : "null") + ',component:__componentSnapshot(applied.component)});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
 function graphicsManage(params: Record<string, unknown>): Record<string, unknown> {
   const operation = String(params.operation ?? "importMogrt");
-  if (operation !== "importMogrt") throw new Error("premiere.graphics.manage currently supports importMogrt");
   const sequence = optionalString(params, "sequence");
+
+  if (operation === "inspect") {
+    const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+    let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var item=__clip(seq,' + js({ ...target, trackType: "video" }) + ');var component=null;try{if(item.getMGTComponent)component=item.getMGTComponent();}catch(e){return JSON.stringify({success:false,error:String(e)});}return JSON.stringify({success:true,operation:"inspect",name:String(item.name),component:__componentSnapshot(component)});';
+    return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+  }
+
+  if (operation !== "importMogrt") throw new Error("premiere.graphics.manage operation must be importMogrt or inspect");
   const path = requireString(params, "mogrtPath");
   const time = Math.max(0, finiteNumber(params.time, 0));
   const videoTrack = Math.max(0, integer(params.videoTrack, 0));
@@ -321,7 +340,7 @@ function graphicsManage(params: Record<string, unknown>): Record<string, unknown
   const values = params.properties && typeof params.properties === "object" ? params.properties as Record<string, unknown> : {};
   const texts = Array.isArray(params.texts) ? params.texts.filter((x): x is string => typeof x === "string") : [];
   let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var file=new File(' + js(path) + ');if(!file.exists)throw new Error("MOGRT file not found");if(!seq.importMGT)throw new Error("Premiere importMGT API unavailable");var item=seq.importMGT(file.fsName,__ticks(' + js(time) + '),' + videoTrack + ',' + audioTrack + ');if(!item)throw new Error("MOGRT import failed");var component=null;try{if(item.getMGTComponent)component=item.getMGTComponent();}catch(_){}var writes=[];';
-  body += 'if(component&&component.properties){var wanted=' + js(values) + ';writes=__setNamedProperties(component,wanted);var texts=' + js(texts) + ';if(texts.length){var candidates=[];for(var i=0;i<component.properties.numItems;i++){var p=component.properties[i],v=null;try{v=p.getValue();}catch(_){}var dn=__norm(p.displayName);if(dn.indexOf("sourcetext")>=0||dn==="text"||dn.indexOf("title")>=0||(typeof v==="string"&&(v.indexOf("mTextString")>=0||v.indexOf("mTextParam")>=0||v.indexOf("textEditValue")>=0)))candidates.push(p);}for(var ti=0;ti<texts.length&&ti<candidates.length;ti++){var prop=candidates[ti],raw=null;try{raw=prop.getValue();}catch(_){}var next=texts[ti],ok=false;try{if(typeof raw==="string"){var brace=raw.indexOf("{");if(brace>=0){var prefix=raw.substring(0,brace),obj=JSON.parse(raw.substring(brace));if(obj.mTextParam&&obj.mTextParam.mStyleSheet)obj.mTextParam.mStyleSheet.mText=next;else if(obj.mTextString!==undefined)obj.mTextString=next;else if(obj.textEditValue!==undefined)obj.textEditValue=next;else obj.mTextString=next;prop.setValue(prefix+JSON.stringify(obj),true);ok=true;}}if(!ok){prop.setValue(next,true);ok=true;}}catch(eText){writes.push({name:String(prop.displayName),ok:false,error:String(eText)});continue;}writes.push({name:String(prop.displayName),ok:ok,text:next});}}}return JSON.stringify({success:true,operation:"importMogrt",name:item.name,start:' + js(time) + ',videoTrack:' + videoTrack + ',writes:writes});';
+  body += 'if(component&&component.properties){var wanted=' + js(values) + ';writes=__setNamedProperties(component,wanted);var texts=' + js(texts) + ';if(texts.length){var candidates=[];for(var i=0;i<component.properties.numItems;i++){var p=component.properties[i],v=null;try{v=p.getValue();}catch(_){}var dn=__norm(p.displayName);if(dn.indexOf("sourcetext")>=0||dn==="text"||dn.indexOf("title")>=0||(typeof v==="string"&&(v.indexOf("mTextString")>=0||v.indexOf("mTextParam")>=0||v.indexOf("textEditValue")>=0)))candidates.push(p);}for(var ti=0;ti<texts.length&&ti<candidates.length;ti++){var prop=candidates[ti],raw=null;try{raw=prop.getValue();}catch(_){}var next=texts[ti],ok=false;try{if(typeof raw==="string"){var brace=raw.indexOf("{");if(brace>=0){var prefix=raw.substring(0,brace),obj=JSON.parse(raw.substring(brace));if(obj.mTextParam&&obj.mTextParam.mStyleSheet)obj.mTextParam.mStyleSheet.mText=next;else if(obj.mTextString!==undefined)obj.mTextString=next;else if(obj.textEditValue!==undefined)obj.textEditValue=next;else obj.mTextString=next;prop.setValue(prefix+JSON.stringify(obj),true);ok=true;}}if(!ok){prop.setValue(next,true);ok=true;}}catch(eText){writes.push({name:String(prop.displayName),ok:false,error:String(eText)});continue;}writes.push({name:String(prop.displayName),ok:ok,text:next});}}}return JSON.stringify({success:true,operation:"importMogrt",name:item.name,start:' + js(time) + ',videoTrack:' + videoTrack + ',writes:writes,component:__componentSnapshot(component)});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 
