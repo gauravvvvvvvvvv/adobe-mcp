@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: TypeScript 7 / MCP v2 build compatibility and registry metadata after `d4f7a220`.
+Last updated commit target: MCP TypeScript v2 stdio factory/lifecycle fix after `a0001405`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -23,6 +23,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Runtime / agent workflow
 
+- [x] 2026-07-28 MCP v2 `serveStdio` factory lifecycle with broker cleanup on stdio disconnect and explicit handle shutdown.
 - [x] `creative.audio.analyze` locally extracts silence regions, energy onsets and tempo estimates with ffmpeg so beat-aware planning does not require model-side audio decoding.
 - [x] Cache-aware `creative.assets.review` batches bounded source contact-sheet generation with optional proxies/waveforms and reuses fresh artifacts across planning/repair passes.
 - [x] `inspect_context(fresh=true)` routes each host to its real inspect operation (standard context, Media Encoder queue status, Lightroom catalog inspect, Acrobat PDF inspect, Substance project inspect).
@@ -135,6 +136,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Tests and quality
 
+- [x] MCP entry regression + release gate rejects pre-v2 stdio instance wiring or missing broker cleanup.
 - [x] TypeScript 7 explicitly includes Node type declarations; release gate rejects missing `compilerOptions.types: ["node"]`.
 - [x] Parser/static replay caught and repaired stale acceptance/Photoshop regression assertions before real-host release validation.
 - [x] Catalog coverage regression verifies every advertised capability has an implementation source and no duplicate IDs.

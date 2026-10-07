@@ -64,6 +64,14 @@ for (const relative of requiredFiles) if (!(await exists(join(root, relative))))
 checks.requiredFiles = { total: requiredFiles.length, missing };
 if (missing.length) errors.push("required_files_missing");
 
+const entrySource = await readFile(join(root, "src", "index.ts"), "utf8");
+checks.mcpStdioFactory = {
+  usesFactory: /serveStdio\(buildServer\)/.test(entrySource),
+  closesBrokerOnServerClose: /server\.server\.onclose/.test(entrySource)
+};
+if (!(checks.mcpStdioFactory as { usesFactory?: boolean }).usesFactory) errors.push("mcp_stdio_factory_missing");
+if (!(checks.mcpStdioFactory as { closesBrokerOnServerClose?: boolean }).closesBrokerOnServerClose) errors.push("mcp_stdio_cleanup_missing");
+
 const capabilityCoverage = await auditCapabilitySources(root, CAPABILITIES);
 checks.capabilityCoverage = capabilityCoverage;
 if (!capabilityCoverage.ok) errors.push("catalog_capability_without_implementation");

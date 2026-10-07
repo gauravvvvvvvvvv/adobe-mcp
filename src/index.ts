@@ -22,6 +22,7 @@ const broker = new LocalBridgeBroker();
 await broker.start();
 const runtime = new CreativeRuntime(broker);
 
+function buildServer() {
 const server = new McpServer(
   { name: "adobe-mcp", version: ADOBE_MCP_VERSION },
   {
@@ -163,11 +164,21 @@ server.registerTool(
   }
 );
 
+
+  server.server.onclose = () => {
+    void broker.close();
+  };
+  return server;
+}
+
+const stdioHandle = serveStdio(buildServer);
+
 const shutdown = async () => {
+  await stdioHandle.close();
   await broker.close();
   process.exit(0);
 };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-await serveStdio(server);
+
