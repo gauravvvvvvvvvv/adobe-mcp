@@ -58,6 +58,12 @@ function op(
 export function listRecipes() {
   return [
     {
+      id: "premiere.master-edit",
+      title: "Premiere master edit",
+      apps: ["premiere", "media-encoder"],
+      summary: "Assemble selects, apply optional dialogue ducking/color/captions, run structural QA and optionally export a validated master."
+    },
+    {
       id: "premiere.rough-cut",
       title: "Premiere rough cut",
       apps: ["premiere"],
@@ -80,6 +86,24 @@ export function listRecipes() {
       title: "Premiere social cutdown",
       apps: ["premiere"],
       summary: "Build a short vertical/social edit with reframing, captions, loudness-aware audio and delivery QA."
+    },
+    {
+      id: "after-effects.lower-third",
+      title: "After Effects lower third",
+      apps: ["after-effects"],
+      summary: "Build a reusable animated lower third from native shape and text layers."
+    },
+    {
+      id: "after-effects.hud",
+      title: "After Effects HUD",
+      apps: ["after-effects"],
+      summary: "Build a procedural HUD-style graphic from vector shapes, trim paths, repeaters and labels."
+    },
+    {
+      id: "after-effects.composite-vfx",
+      title: "After Effects composite/VFX",
+      apps: ["after-effects"],
+      summary: "Import plates/overlays, configure mattes/effects/3D placement and prepare a compositing review pass."
     },
     {
       id: "after-effects.kinetic-typography",
@@ -115,6 +139,106 @@ export function listRecipes() {
 }
 
 export function expandRecipe(id: string, input: Record<string, unknown>): CreativeRecipe {
+  if (id === "premiere.master-edit") {
+    const clips = mustArray(input.clips, "clips");
+    const sequence = typeof input.sequence === "string" ? input.sequence : undefined;
+    const operations: ReturnType<typeof op>[] = [
+      op("assemble", "assembly", "premiere.timeline.assemble", {
+        sequence,
+        clips,
+        startAt: num(input.startAt, 0),
+        clear: input.clear === true
+      }, "Assemble master edit")
+    ];
+
+    if (input.audioTarget && typeof input.audioTarget === "object") {
+      operations.push(op("dialogue-mix", "audio", "premiere.audio.mix", {
+        sequence,
+        target: input.audioTarget,
+        levelDb: input.levelDb === undefined ? undefined : num(input.levelDb),
+        baseDb: num(input.baseDb, 0),
+        fadeSeconds: num(input.fadeSeconds, 0.2),
+        duckingWindows: Array.isArray(input.duckingWindows) ? input.duckingWindows : []
+      }, "Balance dialogue/music"));
+    }
+
+    if (input.gradeTarget && typeof input.gradeTarget === "object") {
+      operations.push(op("grade", "color", "premiere.color.grade", {
+        sequence,
+        target: input.gradeTarget,
+        adjustments: input.gradeAdjustments && typeof input.gradeAdjustments === "object" ? input.gradeAdjustments : {},
+        lutPath: typeof input.lutPath === "string" ? input.lutPath : undefined
+      }, "Apply master grade"));
+    }
+
+    if (typeof input.captionPath === "string") {
+      operations.push(op("captions", "captions", "premiere.captions.manage", {
+        sequence,
+        operation: "importSrt",
+        path: input.captionPath,
+        start: 0,
+        format: typeof input.captionFormat === "string" ? input.captionFormat : "subtitle"
+      }, "Import captions"));
+    }
+
+    if (input.mogrt && typeof input.mogrt === "object") {
+      const mogrt = mustObject(input.mogrt, "mogrt");
+      operations.push(op("graphics", "graphics", "premiere.graphics.manage", {
+        sequence,
+        operation: "importMogrt",
+        ...mogrt
+      }, "Add title/graphic"));
+    }
+
+    operations.push(op("timeline-qa", "review", "premiere.timeline.qa", {
+      sequence,
+      minClipSeconds: num(input.minClipSeconds, 0.08),
+      gapToleranceSeconds: num(input.gapToleranceSeconds, 0.001)
+    }, "Verify timeline structure"));
+
+    if (typeof input.outputPath === "string" && typeof input.presetPath === "string") {
+      operations.push(op("export-master", "export", "premiere.export.render", {
+        sequence,
+        outputPath: input.outputPath,
+        presetPath: input.presetPath,
+        startImmediately: input.startImmediately !== false
+      }, "Export master"));
+    }
+
+    return {
+      id,
+      title: "Premiere master edit",
+      apps: ["premiere", "media-encoder"],
+      summary: "One deterministic master-edit plan from explicit source selects through finishing and export.",
+      inputs: {
+        clips: "Array of explicit source selects",
+        sequence: "Optional target sequence",
+        audioTarget: "Optional dialogue/music clip target for levels/ducking",
+        duckingWindows: "Optional dialogue-active ranges",
+        gradeTarget: "Optional representative clip target for Lumetri adjustments",
+        captionPath: "Optional SRT",
+        mogrt: "Optional Premiere MOGRT operation parameters",
+        outputPath: "Optional master output",
+        presetPath: "Required with outputPath; Adobe Media Encoder .epr"
+      },
+      output: {
+        operations,
+        acceptanceCriteria: [
+          { id: "master.story", description: "The cut communicates the requested story and hook without dead sections.", kind: "prompt", required: true },
+          { id: "master.timeline", description: "No unintended timeline gaps, overlaps or flash-frame clips remain.", kind: "technical", required: true },
+          { id: "master.audio", description: "Dialogue/music balance is clear, controlled and free of abrupt level changes.", kind: "audio", required: !!input.audioTarget },
+          { id: "master.color", description: "Shot-to-shot color and exposure feel intentional and consistent.", kind: "visual", required: !!input.gradeTarget },
+          { id: "master.captions", description: "Requested captions are readable, timed and inside safe areas.", kind: "visual", required: typeof input.captionPath === "string" },
+          { id: "master.render", description: "The exported master matches requested technical delivery settings and plays correctly.", kind: "render", required: typeof input.outputPath === "string" }
+        ],
+        notes: [
+          "Run creative.reference.analyze before expansion when reference pacing/style is provided.",
+          "After export, run creative.output.validate and creative.preview.generate; do not pass review until the agent has inspected those artifacts."
+        ]
+      }
+    };
+  }
+
   if (id === "premiere.rough-cut") {
     const clips = mustArray(input.clips, "clips");
     const sequence = typeof input.sequence === "string" ? input.sequence : undefined;
@@ -293,6 +417,162 @@ export function expandRecipe(id: string, input: Record<string, unknown>): Creati
           "Create/activate the desired aspect-ratio sequence before expansion when a dedicated sequence preset is required.",
           "Run creative.output.validate with target width/height/fps after export."
         ]
+      }
+    };
+  }
+
+  if (id === "after-effects.lower-third") {
+    const composition = typeof input.composition === "string" ? input.composition : undefined;
+    const title = text(input.title);
+    const subtitle = typeof input.subtitle === "string" ? input.subtitle : undefined;
+    const start = Math.max(0, num(input.start, 0));
+    const duration = Math.max(0.5, num(input.duration, 4));
+    const x = num(input.x, 140);
+    const y = num(input.y, 850);
+    const width = num(input.width, 760);
+    const height = num(input.height, subtitle ? 170 : 120);
+    const bgName = typeof input.backgroundName === "string" ? input.backgroundName : "Lower Third BG";
+    const operations = [
+      op("lower-bg", "graphics", "after-effects.shapes.draw", {
+        composition,
+        shape: "rectangle",
+        name: bgName,
+        width,
+        height,
+        position: [x + width / 2, y],
+        fill: Array.isArray(input.fill) ? input.fill : [0.05, 0.05, 0.05],
+        stroke: Array.isArray(input.stroke) ? input.stroke : undefined,
+        strokeWidth: num(input.strokeWidth, 0)
+      }, "Create lower-third panel"),
+      op("lower-title", "graphics", "after-effects.text.animate", {
+        composition,
+        text: title,
+        name: "Lower Third Title",
+        start,
+        duration,
+        animateIn: num(input.animateIn, 0.28),
+        fontSize: num(input.titleSize, 64),
+        position: [x, y - (subtitle ? 24 : 0)],
+        color: Array.isArray(input.textColor) ? input.textColor : [1,1,1]
+      }, "Animate lower-third title")
+    ];
+    if (subtitle) operations.push(op("lower-subtitle", "graphics", "after-effects.text.animate", {
+      composition,
+      text: subtitle,
+      name: "Lower Third Subtitle",
+      start: start + 0.08,
+      duration,
+      animateIn: num(input.animateIn, 0.28),
+      fontSize: num(input.subtitleSize, 32),
+      position: [x, y + 42],
+      color: Array.isArray(input.subtitleColor) ? input.subtitleColor : [0.8,0.8,0.8]
+    }, "Animate lower-third subtitle"));
+
+    return {
+      id,
+      title: "After Effects lower third",
+      apps: ["after-effects"],
+      summary: "Native shape/text lower third with staggered intro animation.",
+      inputs: { title: "Required title", subtitle: "Optional subtitle", composition: "Target comp", start: "Start seconds", duration: "Visible duration" },
+      output: {
+        operations,
+        acceptanceCriteria: [
+          { id: "lower.readable", description: "Title/subtitle remain readable and correctly hierarchical.", kind: "visual", required: true },
+          { id: "lower.safe", description: "Lower third stays inside delivery safe area and never covers critical subject detail.", kind: "visual", required: true },
+          { id: "lower.motion", description: "Entrance feels smooth and intentional with no clipping or jitter.", kind: "visual", required: true }
+        ],
+        notes: ["Use after-effects.properties.animate for a custom exit or more complex panel motion."]
+      }
+    };
+  }
+
+  if (id === "after-effects.hud") {
+    const composition = typeof input.composition === "string" ? input.composition : undefined;
+    const center = Array.isArray(input.center) ? input.center : [960,540];
+    const color = Array.isArray(input.color) ? input.color : [0.1,0.9,1];
+    return {
+      id,
+      title: "After Effects HUD",
+      apps: ["after-effects"],
+      summary: "Procedural vector HUD building block using trim paths, repeaters and labels.",
+      inputs: { composition: "Target comp", center: "HUD center", label: "Optional label" },
+      output: {
+        operations: [
+          op("hud-ring", "graphics", "after-effects.shapes.draw", {
+            composition,
+            shape: "ellipse",
+            name: "HUD Ring",
+            width: num(input.size, 360),
+            height: num(input.size, 360),
+            position: center,
+            fill: [0,0,0],
+            stroke: color,
+            strokeWidth: num(input.strokeWidth, 4),
+            trim: { start: num(input.trimStart, 8), end: num(input.trimEnd, 82), offset: num(input.trimOffset, 12) }
+          }),
+          op("hud-ticks", "graphics", "after-effects.shapes.draw", {
+            composition,
+            shape: "rectangle",
+            name: "HUD Ticks",
+            width: 4,
+            height: 24,
+            position: center,
+            fill: color,
+            repeater: { copies: Math.max(4, Math.round(num(input.ticks, 24))), rotation: 360 / Math.max(4, Math.round(num(input.ticks, 24))) }
+          }),
+          ...(typeof input.label === "string" ? [op("hud-label", "graphics", "after-effects.text.animate", {
+            composition,
+            text: input.label,
+            name: "HUD Label",
+            position: [Number(center[0]), Number(center[1]) + num(input.size,360) * 0.62],
+            fontSize: num(input.fontSize, 28),
+            duration: num(input.duration, 5),
+            animateIn: 0.2,
+            color
+          })] : [])
+        ],
+        acceptanceCriteria: [
+          { id: "hud.crisp", description: "HUD vectors remain crisp, aligned and free of accidental fills/edge clipping.", kind: "visual", required: true },
+          { id: "hud.hierarchy", description: "HUD detail density supports the focal point instead of becoming visual noise.", kind: "visual", required: true }
+        ],
+        notes: ["Animate trim offset/rotation with after-effects.properties.animate for scanning/spinning behavior."]
+      }
+    };
+  }
+
+  if (id === "after-effects.composite-vfx") {
+    const composition = typeof input.composition === "string" ? input.composition : undefined;
+    const platePath = text(input.platePath);
+    const overlayPath = typeof input.overlayPath === "string" ? input.overlayPath : undefined;
+    const operations = [
+      op("plate", "vfx", "after-effects.layers.manage", { composition, operation: "footage", path: platePath, name: "Plate" }, "Import base plate")
+    ];
+    if (overlayPath) operations.push(op("overlay", "vfx", "after-effects.layers.manage", {
+      composition, operation: "footage", path: overlayPath, name: "Overlay", threeDLayer: input.overlay3D === true
+    }, "Import overlay"));
+    if (input.mask && typeof input.mask === "object") operations.push(op("mask", "vfx", "after-effects.masks.mattes", {
+      composition, target: { name: typeof input.maskLayer === "string" ? input.maskLayer : "Overlay" }, operation: "mask", ...input.mask as Record<string, unknown>
+    }, "Create composite mask"));
+    if (input.effect && typeof input.effect === "object") operations.push(op("effect", "vfx", "after-effects.effects.apply", {
+      composition, target: { name: typeof input.effectLayer === "string" ? input.effectLayer : "Overlay" }, operation: "effect", ...input.effect as Record<string, unknown>
+    }, "Apply composite effect"));
+    if (input.threeD && typeof input.threeD === "object") operations.push(op("3d", "vfx", "after-effects.three-d.scene", {
+      composition, operation: "configure", target: { name: typeof input.threeDLayer === "string" ? input.threeDLayer : "Overlay" }, ...input.threeD as Record<string, unknown>
+    }, "Configure 3D composite layer"));
+    return {
+      id,
+      title: "After Effects composite/VFX",
+      apps: ["after-effects"],
+      summary: "Import a plate/overlay and apply typed masking, effects and optional 3D placement.",
+      inputs: { platePath: "Required base plate", overlayPath: "Optional overlay", mask: "Optional mask params", effect: "Optional effect params", threeD: "Optional 3D params" },
+      output: {
+        operations,
+        acceptanceCriteria: [
+          { id: "vfx.edges", description: "Composite edges/mattes look intentional with no obvious halos or hard seams.", kind: "visual", required: !!input.mask },
+          { id: "vfx.match", description: "Overlay perspective, color, contrast and motion feel integrated with the plate.", kind: "visual", required: !!overlayPath },
+          { id: "vfx.clean", description: "No missing media, black frames or accidental layer-edge reveals appear.", kind: "technical", required: true }
+        ],
+        notes: ["Use preview renders for motion-dependent VFX judgment; a still contact sheet alone is insufficient."]
       }
     };
   }

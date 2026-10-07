@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Animate/Audition/Bridge semantic CEP host support after `62091704`.
+Last updated commit target: master recipes + deterministic repair planning + state reconciliation after `152c170c`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -17,8 +17,8 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Local review proxy/contact-sheet/waveform generation.
 - [x] Deterministic media-output validation.
 - [x] Review cannot pass without required acceptance criteria.
-- [ ] One-prompt end-to-end master-edit recipe tested against a real Premiere project.
-- [ ] Automatic repair loop exercised against a deliberately broken render.
+- [~] Code-backed `premiere.master-edit` recipe now assembles/finishes/QA/exports; real Premiere host acceptance remains pending.
+- [~] `creative.repair.plan` converts failed review/media validation into targeted patch capabilities and re-check steps; deliberate broken-render real-host acceptance remains pending.
 - [~] CEP installers are scripted on Windows/macOS; Photoshop local-dev setup is scripted, while Adobe-supported distributable `.ccx` packaging must be produced with UXP Developer Tool on a machine that has it.
 
 ## Runtime / agent workflow
@@ -70,8 +70,8 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Kinetic typography recipe.
 - [x] Logo reveal recipe.
 - [~] Parallax recipe prepares camera/depth layers; explicit camera animation is appended by the agent.
-- [ ] Lower-third / HUD recipe.
-- [ ] Compositing/VFX recipe primitives.
+- [x] Lower-third and procedural HUD recipes using typed shape/text primitives.
+- [x] Composite/VFX recipe covering footage import, typed masks, effects and optional 3D placement.
 
 ## Photoshop
 
@@ -117,15 +117,15 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Windows CEP manual install/uninstall.
 - [x] No GitHub Actions / CI.
 - [~] UXP adapter now supports arbitrary fixed local paths via fullAccess; packaged/manual CCX installer still pending.
-- [ ] macOS CEP install/uninstall.
-- [ ] `doctor` verifies ffmpeg/ffprobe, bridge port, adapters and install locations.
-- [ ] One command local setup for Codex/Claude configs where safely detectable.
-- [ ] Package manifest includes every adapter/install script needed by npm package.
+- [x] macOS CEP install/uninstall scripts.
+- [~] `doctor` verifies Node, ffmpeg/ffprobe, bridge health, CEP source/install and UXP source/developer-mode state; Media Encoder-specific developer preference still needs host-side manual verification.
+- [x] `adobe-mcp-setup --client codex|claude` plus npm convenience scripts use each client CLI and avoid silent overwrite without force.
+- [x] npm package `files` includes `dist`, all adapters, docs and scripts; `prepack` runs the manual local check suite.
 
 ## Tests and quality
 
 - [x] Unit tests for EditSpec validation/defaults/rejections.
-- [~] Unit tests cover compiler capability routing; persistent runtime-job tests still pending.
+- [x] Runtime tests cover checkpoints/restore/artifacts, crash unknown-outcome handling, review acceptance enforcement and repair planning.
 - [x] Unit tests for script escaping/injection safety.
 - [x] Static syntax tests for generated Premiere/AE/Illustrator ExtendScript output.
 - [x] Broker reconnect regression test with mock WebSocket host.

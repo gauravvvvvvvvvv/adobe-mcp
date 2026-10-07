@@ -14,6 +14,7 @@ import {
 } from "./job-files.js";
 import { generateReviewPack, validateMediaOutput } from "./media-review.js";
 import { analyzeReference } from "./reference-analysis.js";
+import { planRepairs } from "./repair.js";
 import { expandRecipe, listRecipes } from "./recipes.js";
 import type { LocalBridgeBroker } from "./broker.js";
 import { invokeAdobeCapability } from "./invoke.js";
@@ -160,6 +161,26 @@ export class CreativeRuntime {
   }
 
   async execute(capability: string, params: Record<string, unknown>, timeoutMs = 120_000): Promise<unknown> {
+    if (capability === "creative.repair.plan") {
+      if (typeof params.jobId === "string") {
+        const job = await this.load(params.jobId);
+        const review = job.reviews.at(-1);
+        if (!review) throw new Error("job_has_no_review");
+        const validation = params.validation && typeof params.validation === "object"
+          ? params.validation as { ok?: boolean; issues?: string[]; warnings?: string[] }
+          : undefined;
+        return planRepairs(job.spec.acceptanceCriteria, review.criteria, review.notes, validation);
+      }
+      const criteria = Array.isArray(params.criteria) ? params.criteria as any[] : [];
+      const reviewCriteria = Array.isArray(params.reviewCriteria) ? params.reviewCriteria as any[] : [];
+      return planRepairs(
+        criteria,
+        reviewCriteria,
+        typeof params.notes === "string" ? params.notes : "",
+        params.validation && typeof params.validation === "object" ? params.validation as any : undefined
+      );
+    }
+
     if (capability === "creative.recipe.list") {
       return { recipes: listRecipes() };
     }

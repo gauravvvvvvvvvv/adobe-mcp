@@ -120,3 +120,34 @@ test("passing review requires all required acceptance criteria", async () => {
     /cannot_pass_review_missing_criteria/
   );
 });
+
+
+test("repair planner turns failed review criteria into targeted capabilities", async () => {
+  const root = await mkdtemp(join(tmpdir(), "adobe-mcp-repair-"));
+  process.env.ADOBE_MCP_JOBS_DIR = join(root, "jobs");
+  process.env.ADOBE_MCP_CHECKPOINTS_DIR = join(root, "checkpoints");
+  const working = join(root, "project.prproj");
+  await writeFile(working, "safe", "utf8");
+
+  const runtime = new CreativeRuntime({} as never);
+  const editable = spec(working);
+  editable.acceptanceCriteria = [
+    { id: "audio.clean", description: "Dialogue and music remain balanced without clipping", kind: "audio", required: true },
+    { id: "captions.safe", description: "Captions remain readable inside safe areas", kind: "visual", required: true }
+  ];
+  const created = await runtime.execute("creative.job.create", { spec: editable }) as any;
+  await runtime.execute("creative.job.review", {
+    jobId: created.job.id,
+    verdict: "fail",
+    criteria: [
+      { id: "audio.clean", verdict: "fail", note: "music buries dialogue" },
+      { id: "captions.safe", verdict: "fail", note: "bottom line leaves safe area" }
+    ],
+    notes: "Repair both issues"
+  });
+  const plan = await runtime.execute("creative.repair.plan", { jobId: created.job.id }) as any;
+  assert.equal(plan.ok, false);
+  assert.ok(plan.failedCriteria.includes("audio.clean"));
+  assert.ok(plan.directives.some((d: any) => d.suggestedCapabilities.includes("premiere.audio.mix")));
+  assert.ok(plan.directives.some((d: any) => d.suggestedCapabilities.includes("premiere.captions.manage")));
+});
