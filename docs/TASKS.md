@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: custom/nonstandard local Adobe install discovery after `783e0696`.
+Last updated commit target: cache-aware batched source review for token-efficient visual shortlisting after `e1d8e8d4`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -23,6 +23,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Runtime / agent workflow
 
+- [x] Cache-aware `creative.assets.review` batches bounded source contact-sheet generation with optional proxies/waveforms and reuses fresh artifacts across planning/repair passes.
 - [x] `inspect_context(fresh=true)` routes each host to its real inspect operation (standard context, Media Encoder queue status, Lightroom catalog inspect, Acrobat PDF inspect, Substance project inspect).
 - [x] `get_capability` returns on-demand parameter/operation/example guides for high-value semantic calls while `search_capabilities` remains lean.
 - [x] `creative.runtime.limits` exposes known Adobe host/tooling ceilings and preferred fallbacks to prevent repeated agent failures.

@@ -5,7 +5,7 @@ import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { generateReviewPack, validateMediaOutput } from "../src/media-review.js";
+import { generateAssetReviewPacks, generateReviewPack, validateMediaOutput } from "../src/media-review.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -62,4 +62,23 @@ test("media review generates proxy/contact/waveform and validates streams", {
   for (const artifact of pack.artifacts) {
     assert.ok((await stat(artifact.path)).size > 0);
   }
+
+  const cached = await generateReviewPack(input, reviewDir, {
+    proxyWidth: 480,
+    contactFrames: 9,
+    includeWaveform: true,
+    reuseExisting: true
+  });
+  assert.equal(cached.cacheHits, 3);
+  assert.ok(cached.artifacts.every((artifact) => artifact.cached === true));
+
+  const batch = await generateAssetReviewPacks([input, input], join(root, "batch-review"), {
+    contactFrames: 6,
+    includeProxy: false,
+    includeWaveform: false
+  });
+  assert.equal(batch.requested, 1);
+  assert.equal(batch.reviewed, 1);
+  assert.equal(batch.items[0].artifacts.some((artifact) => artifact.kind === "contact-sheet"), true);
+  assert.equal(batch.items[0].artifacts.some((artifact) => artifact.kind === "video-proxy"), false);
 });

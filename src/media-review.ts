@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, stat } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -70,10 +71,23 @@ function stem(path: string): string {
   return name.replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 100) || "media";
 }
 
+function reviewKey(path: string): string {
+  return createHash("sha1").update(resolve(path)).digest("hex").slice(0, 10);
+}
+
+async function isFreshArtifact(path: string, inputMtimeMs: number): Promise<boolean> {
+  try {
+    const file = await stat(path);
+    return file.isFile() && file.size > 0 && file.mtimeMs >= inputMtimeMs;
+  } catch {
+    return false;
+  }
+}
+
 export async function generateReviewPack(
   inputPath: string,
   outputDir: string,
-  options: { proxyWidth?: number; contactFrames?: number; includeWaveform?: boolean } = {}
+  options: { proxyWidth?: number; contactFrames?: number; includeWaveform?: boolean; includeProxy?: boolean; includeContactSheet?: boolean; reuseExisting?: boolean } = {}
 ) {
   const input = resolve(inputPath);
   const output = resolve(outputDir);
@@ -83,25 +97,34 @@ export async function generateReviewPack(
 
   const probe = await probeMedia(input);
   const base = stem(input);
-  const artifacts: Array<{ kind: string; path: string }> = [];
+  const artifacts: Array<{ kind: string; path: string; cached?: boolean }> = [];
   const warnings: string[] = [];
+  let cacheHits = 0;
+  const reuse = options.reuseExisting !== false;
 
   if (probe.width && probe.height) {
     const width = Math.max(320, Math.min(options.proxyWidth ?? 1280, 1920));
     const proxyPath = join(output, base + ".review.mp4");
 
-    try {
-      await execFileAsync("ffmpeg", [
-        "-y","-v","error","-i",input,
-        "-vf",`scale='min(${width},iw)':-2`,
-        "-c:v","libx264","-preset","veryfast","-crf","26",
-        "-c:a","aac","-b:a","128k",
-        "-movflags","+faststart",
-        proxyPath
-      ], { maxBuffer: 4 * 1024 * 1024 });
-      artifacts.push({ kind: "video-proxy", path: proxyPath });
-    } catch (error) {
-      warnings.push("proxy_failed:" + (error instanceof Error ? error.message : String(error)));
+    if (options.includeProxy !== false) {
+      if (reuse && await isFreshArtifact(proxyPath, file.mtimeMs)) {
+        artifacts.push({ kind: "video-proxy", path: proxyPath, cached: true });
+        cacheHits += 1;
+      } else {
+        try {
+          await execFileAsync("ffmpeg", [
+            "-y","-v","error","-i",input,
+            "-vf",`scale='min(${width},iw)':-2`,
+            "-c:v","libx264","-preset","veryfast","-crf","26",
+            "-c:a","aac","-b:a","128k",
+            "-movflags","+faststart",
+            proxyPath
+          ], { maxBuffer: 4 * 1024 * 1024 });
+          artifacts.push({ kind: "video-proxy", path: proxyPath, cached: false });
+        } catch (error) {
+          warnings.push("proxy_failed:" + (error instanceof Error ? error.message : String(error)));
+        }
+      }
     }
 
     const frames = Math.max(4, Math.min(options.contactFrames ?? 16, 36));
@@ -111,37 +134,99 @@ export async function generateReviewPack(
     const duration = Math.max(probe.durationSeconds ?? 1, 0.1);
     const fps = Math.max(frames / duration, 0.0001);
 
-    try {
-      await execFileAsync("ffmpeg", [
-        "-y","-v","error","-i",input,
-        "-vf",`fps=${fps},scale=320:-2,tile=${cols}x${rows}:padding=2:margin=2`,
-        "-frames:v","1",
-        "-q:v","3",
-        contactPath
-      ], { maxBuffer: 4 * 1024 * 1024 });
-      artifacts.push({ kind: "contact-sheet", path: contactPath });
-    } catch (error) {
-      warnings.push("contact_sheet_failed:" + (error instanceof Error ? error.message : String(error)));
+    if (options.includeContactSheet !== false) {
+      if (reuse && await isFreshArtifact(contactPath, file.mtimeMs)) {
+        artifacts.push({ kind: "contact-sheet", path: contactPath, cached: true });
+        cacheHits += 1;
+      } else {
+        try {
+          await execFileAsync("ffmpeg", [
+            "-y","-v","error","-i",input,
+            "-vf",`fps=${fps},scale=320:-2,tile=${cols}x${rows}:padding=2:margin=2`,
+            "-frames:v","1",
+            "-q:v","3",
+            contactPath
+          ], { maxBuffer: 4 * 1024 * 1024 });
+          artifacts.push({ kind: "contact-sheet", path: contactPath, cached: false });
+        } catch (error) {
+          warnings.push("contact_sheet_failed:" + (error instanceof Error ? error.message : String(error)));
+        }
+      }
     }
   }
 
   if (options.includeWaveform !== false && probe.channels) {
     const waveformPath = join(output, base + ".waveform.png");
-    try {
-      await execFileAsync("ffmpeg", [
-        "-y","-v","error","-i",input,
-        "-filter_complex","aformat=channel_layouts=mono,showwavespic=s=1600x320",
-        "-frames:v","1",
-        waveformPath
-      ], { maxBuffer: 4 * 1024 * 1024 });
-      artifacts.push({ kind: "waveform", path: waveformPath });
-    } catch (error) {
-      warnings.push("waveform_failed:" + (error instanceof Error ? error.message : String(error)));
+    if (reuse && await isFreshArtifact(waveformPath, file.mtimeMs)) {
+      artifacts.push({ kind: "waveform", path: waveformPath, cached: true });
+      cacheHits += 1;
+    } else {
+      try {
+        await execFileAsync("ffmpeg", [
+          "-y","-v","error","-i",input,
+          "-filter_complex","aformat=channel_layouts=mono,showwavespic=s=1600x320",
+          "-frames:v","1",
+          waveformPath
+        ], { maxBuffer: 4 * 1024 * 1024 });
+        artifacts.push({ kind: "waveform", path: waveformPath, cached: false });
+      } catch (error) {
+        warnings.push("waveform_failed:" + (error instanceof Error ? error.message : String(error)));
+      }
     }
   }
 
   if (!artifacts.length) throw new Error("no_review_artifacts_generated");
-  return { input, probe, artifacts, warnings };
+  return { input, probe, artifacts, warnings, cacheHits };
+}
+
+export async function generateAssetReviewPacks(
+  inputPaths: string[],
+  outputDir: string,
+  options: {
+    maxAssets?: number;
+    proxyWidth?: number;
+    contactFrames?: number;
+    includeWaveform?: boolean;
+    includeProxy?: boolean;
+    includeContactSheet?: boolean;
+    reuseExisting?: boolean;
+  } = {}
+) {
+  const unique = [...new Set(inputPaths.map((path) => resolve(path)))];
+  const maxAssets = Math.max(1, Math.min(options.maxAssets ?? 12, 32));
+  const selected = unique.slice(0, maxAssets);
+  const items = [];
+
+  for (const input of selected) {
+    const perAssetDir = join(resolve(outputDir), stem(input) + "-" + reviewKey(input));
+    try {
+      items.push(await generateReviewPack(input, perAssetDir, {
+        proxyWidth: options.proxyWidth ?? 720,
+        contactFrames: options.contactFrames ?? 9,
+        includeWaveform: options.includeWaveform === true,
+        includeProxy: options.includeProxy === true,
+        includeContactSheet: options.includeContactSheet !== false,
+        reuseExisting: options.reuseExisting !== false
+      }));
+    } catch (error) {
+      items.push({
+        input,
+        probe: null,
+        artifacts: [],
+        warnings: ["review_failed:" + (error instanceof Error ? error.message : String(error))],
+        cacheHits: 0
+      });
+    }
+  }
+
+  return {
+    requested: unique.length,
+    reviewed: items.length,
+    truncated: unique.length > selected.length,
+    cacheHits: items.reduce((sum, item) => sum + Number(item.cacheHits || 0), 0),
+    items,
+    tokenHint: "Inspect contact sheets first. Request video proxies only for clips that survive visual shortlisting."
+  };
 }
 
 export async function validateMediaOutput(

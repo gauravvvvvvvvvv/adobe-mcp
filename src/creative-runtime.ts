@@ -13,7 +13,7 @@ import {
   type JobArtifact,
   type JobCheckpoint
 } from "./job-files.js";
-import { generateReviewPack, validateMediaOutput } from "./media-review.js";
+import { generateAssetReviewPacks, generateReviewPack, validateMediaOutput } from "./media-review.js";
 import { analyzeReference } from "./reference-analysis.js";
 import { planRepairs } from "./repair.js";
 import { expandRecipe, listRecipes } from "./recipes.js";
@@ -237,6 +237,33 @@ export class CreativeRuntime {
         maxFrames: typeof params.maxFrames === "number" ? params.maxFrames : undefined,
         proxyWidth: typeof params.proxyWidth === "number" ? params.proxyWidth : undefined
       });
+    }
+
+    if (capability === "creative.assets.review") {
+      const paths = Array.isArray(params.paths) ? params.paths.filter((x): x is string => typeof x === "string") : [];
+      if (!paths.length || typeof params.outputDir !== "string") throw new Error("paths_and_outputDir_required");
+      const pack = await generateAssetReviewPacks(paths, params.outputDir, {
+        maxAssets: typeof params.maxAssets === "number" ? params.maxAssets : undefined,
+        proxyWidth: typeof params.proxyWidth === "number" ? params.proxyWidth : undefined,
+        contactFrames: typeof params.contactFrames === "number" ? params.contactFrames : undefined,
+        includeWaveform: params.includeWaveform === true,
+        includeProxy: params.includeProxy === true,
+        includeContactSheet: params.includeContactSheet !== false,
+        reuseExisting: params.reuseExisting !== false
+      });
+      if (typeof params.jobId === "string") {
+        const job = await this.load(params.jobId);
+        for (const item of pack.items) {
+          for (const artifact of item.artifacts) {
+            await this.addArtifact(job, artifact.path, {
+              kind: artifact.kind,
+              role: "reference",
+              metadata: { source: item.input, cached: artifact.cached === true }
+            });
+          }
+        }
+      }
+      return pack;
     }
 
     if (capability === "creative.preview.generate") {

@@ -28,6 +28,10 @@ const GUIDES: Record<string, CapabilityGuide> = {
       notes: ["Prefer exactHash=false for very large footage sets unless byte-identical duplicate proof is needed."]
     }
   ),
+  "creative.assets.review": G(
+    { paths: ["D:/media/a.mp4", "D:/media/b.mp4"], outputDir: "D:/project/.adobe-mcp/source-review", maxAssets: 12, contactFrames: 9, includeProxy: false, includeWaveform: false, reuseExisting: true },
+    { required: ["paths[]", "outputDir"], optional: ["jobId", "maxAssets", "proxyWidth", "contactFrames", "includeProxy", "includeContactSheet", "includeWaveform", "reuseExisting"], notes: ["Inspect cached contact sheets first; request proxies only for finalists to minimize compute and model context."] }
+  ),
   "creative.reference.analyze": G(
     { inputPath: "D:/project/reference.mp4", outputDir: "D:/project/.adobe-mcp/reference", maxFrames: 16 },
     { required: ["inputPath", "outputDir"], optional: ["sceneThreshold", "silenceDb", "silenceMinSeconds", "maxFrames", "proxyWidth"] }

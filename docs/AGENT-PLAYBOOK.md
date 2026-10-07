@@ -9,7 +9,7 @@ For non-trivial creative work:
 1. Check `adobe_status`.
 2. Use `creative.assets.analyze` for folders/large source sets, or `creative.assets.index` for a few files.
 3. Use `creative.reference.analyze` for reference videos.
-4. Inspect only shortlisted proxies, sampled frames, or images.
+4. Use `creative.assets.review` on shortlisted media, inspect contact sheets first, and request proxies only for finalists.
 5. Search/expand a professional recipe when one fits.
 6. Build a compact EditSpec with explicit deliverables and acceptance criteria.
 7. Validate and create the creative job.
@@ -26,7 +26,7 @@ A successful Adobe command is not a successful edit.
 ## Token-efficiency rules
 
 - Analyze a large media set once; reuse cached paths, fingerprints and duplicate groups.
-- Do not ingest full-resolution video just to shortlist shots.
+- Do not ingest full-resolution video just to shortlist shots; reuse `creative.assets.review` artifacts across planning/repair passes.
 - Generate contact sheets/proxies only for shortlisted media.
 - Pass `knownHash` after the first host-context read.
 - Search capabilities narrowly.
