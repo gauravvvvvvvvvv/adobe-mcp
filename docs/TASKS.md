@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: reusable professional recipe library after `8a13b325`.
+Last updated commit target: Premiere razor/pan/ducking/track-mute compiler block after `dc16e23e`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -40,12 +40,12 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] CEP host connection and compact context inspection.
 - [~] Typed project operations: save/saveAs, import media, bins, sequence activation/creation.
 - [~] Typed timeline assembly from explicit source ranges, tracks and placement times.
-- [~] Typed insert/overwrite assembly plus move/trim/delete/ripple-delete/set-enabled primitives; razor/lift/extract still pending.
+- [~] Typed insert/overwrite assembly plus move/trim/delete/ripple-delete/set-enabled and QE razor (single/all tracks); lift/extract remain pending because Premiere exposes no stable documented direct API.
 - [~] QE speed/reverse/maintain-pitch/ripple primitive added; animated time-remapping remains pending.
 - [~] Generic component/property keyframes support Motion/Opacity and other exposed properties; crop-specific helper pending.
 - [~] Typed QE effect and transition application with named parameter writes.
 - [~] Lumetri Color parameter writes and Input LUT path support.
-- [~] Clip volume level + volume-keyframe primitives; pan/track mix/ducking helpers pending.
+- [~] Clip volume, pan, volume keyframes, computed ducking curves and whole-track mute are typed; track mixer automation/effect-send helpers remain pending.
 - [~] SRT/project-item import into caption track with caption-format mapping; styling/readback remains limited by Premiere scripting API.
 - [~] MOGRT import, named properties and best-effort Source Text payload mutation.
 - [~] Adobe Media Encoder handoff with explicit .epr preset and output path.

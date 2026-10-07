@@ -97,6 +97,21 @@ function timelineEdit(params: Record<string, unknown>): Record<string, unknown> 
     if (sourceOut !== undefined) body += 'clip.outPoint=__time(' + js(sourceOut) + ');';
     if (duration !== undefined) body += 'clip.end=__time(__sec(clip.start)+' + js(duration) + ');';
     body += 'return JSON.stringify({success:true,operation:"trim",before:before,after:{start:__sec(clip.start),end:__sec(clip.end),inPoint:__sec(clip.inPoint),outPoint:__sec(clip.outPoint)}});';
+  } else if (operation === "razor") {
+    const time = Math.max(0, finiteNumber(params.time));
+    const fps = Math.max(1, finiteNumber(params.fps, 30));
+    const allTracks = params.allTracks === true;
+    const trackType = typeof target.trackType === "string" ? String(target.trackType).toLowerCase() : "video";
+    const trackIndex = Math.max(0, integer(target.trackIndex, 0));
+    body += 'try{app.enableQE();}catch(e){throw new Error("QE API unavailable: "+e);}var qseq=qe.project.getActiveSequence();if(!qseq)throw new Error("QE active sequence unavailable");var seconds=' + js(time) + ';var fps=' + js(fps) + ';var total=Math.max(0,Math.round(seconds*fps));function pad2(n){return n<10?"0"+n:String(n);}var ff=total%Math.round(fps);var whole=Math.floor(total/fps);var ss=whole%60;var mm=Math.floor(whole/60)%60;var hh=Math.floor(whole/3600);var tc=pad2(hh)+":"+pad2(mm)+":"+pad2(ss)+":"+pad2(ff);var cut=[];';
+    if (allTracks) {
+      body += 'for(var vi=0;vi<seq.videoTracks.numTracks;vi++){var qv=qseq.getVideoTrackAt(vi);if(qv){qv.razor(tc);cut.push("V"+(vi+1));}}for(var ai=0;ai<seq.audioTracks.numTracks;ai++){var qa=qseq.getAudioTrackAt(ai);if(qa){qa.razor(tc);cut.push("A"+(ai+1));}}';
+    } else if (trackType === "audio") {
+      body += 'if(' + trackIndex + '>=seq.audioTracks.numTracks)throw new Error("Audio track index out of range");var qa=qseq.getAudioTrackAt(' + trackIndex + ');if(!qa)throw new Error("QE audio track unavailable");qa.razor(tc);cut.push("A"+(' + trackIndex + '+1));';
+    } else {
+      body += 'if(' + trackIndex + '>=seq.videoTracks.numTracks)throw new Error("Video track index out of range");var qv=qseq.getVideoTrackAt(' + trackIndex + ');if(!qv)throw new Error("QE video track unavailable");qv.razor(tc);cut.push("V"+(' + trackIndex + '+1));';
+    }
+    body += 'return JSON.stringify({success:true,operation:"razor",seconds:seconds,timecode:tc,tracks:cut});';
   } else if (operation === "speed") {
     const speed = finiteNumber(params.speed, 1);
     if (speed <= 0) throw new Error("speed_must_be_positive");
@@ -109,7 +124,7 @@ function timelineEdit(params: Record<string, unknown>): Record<string, unknown> 
     const enabled = params.enabled !== false;
     body += 'var clip=__clip(seq,' + js(target) + ');clip.disabled=' + (enabled ? "false" : "true") + ';return JSON.stringify({success:true,operation:"setEnabled",enabled:' + (enabled ? "true" : "false") + '});';
   } else {
-    throw new Error("premiere.timeline.edit operation must be move, delete, trim, speed or setEnabled");
+    throw new Error("premiere.timeline.edit operation must be move, delete, trim, razor, speed or setEnabled");
   }
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
@@ -126,14 +141,46 @@ function motionAnimate(params: Record<string, unknown>): Record<string, unknown>
 }
 
 function audioMix(params: Record<string, unknown>): Record<string, unknown> {
-  const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
+  const operation = String(params.operation ?? "clip");
   const sequence = optionalString(params, "sequence");
+
+  if (operation === "trackMute") {
+    const trackIndex = Math.max(0, integer(params.trackIndex, 0));
+    const muted = params.muted !== false;
+    let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');if(' + trackIndex + '>=seq.audioTracks.numTracks)throw new Error("Audio track index out of range");var track=seq.audioTracks[' + trackIndex + '];if(!track.setMute)throw new Error("Track setMute API unavailable");track.setMute(' + (muted ? "1" : "0") + ');return JSON.stringify({success:true,operation:"trackMute",trackIndex:' + trackIndex + ',muted:' + (muted ? "true" : "false") + '});';
+    return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
+  }
+
+  const target = params.target && typeof params.target === "object" ? params.target as Record<string, unknown> : {};
   const levelDb = params.levelDb === undefined ? undefined : finiteNumber(params.levelDb);
-  const frames = objectArray(params.keyframes).map((frame) => ({ time: Math.max(0, finiteNumber(frame.time)), db: finiteNumber(frame.db) }));
-  if (levelDb === undefined && !frames.length) throw new Error("levelDb_or_keyframes_required");
-  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var clip=__clip(seq,' + js({ ...target, trackType: "audio" }) + ');var comp=__component(clip,"Volume");if(!comp)throw new Error("Volume component not found");var prop=__property(comp,"Level");if(!prop)throw new Error("Volume Level property not found");var OFFSET=15;';
+  const pan = params.pan === undefined ? undefined : Math.max(-100, Math.min(100, finiteNumber(params.pan)));
+  const fade = Math.max(0, finiteNumber(params.fadeSeconds, 0.2));
+  const baseDb = finiteNumber(params.baseDb, levelDb ?? 0);
+  const supplied = objectArray(params.keyframes).map((frame) => ({ time: Math.max(0, finiteNumber(frame.time)), db: finiteNumber(frame.db) }));
+  const windows = objectArray(params.duckingWindows).map((window) => ({
+    start: Math.max(0, finiteNumber(window.start ?? window.startTime)),
+    end: Math.max(0, finiteNumber(window.end ?? window.endTime)),
+    db: finiteNumber(window.db ?? window.duckedDb, -18)
+  }));
+  const map = new Map<number, number>();
+  const put = (time: number, db: number) => map.set(Math.round(Math.max(0, time) * 1000) / 1000, db);
+  for (const frame of supplied) put(frame.time, frame.db);
+  for (const window of windows) {
+    if (window.end <= window.start) throw new Error("ducking_window_end_must_exceed_start");
+    put(Math.max(0, window.start - fade), baseDb);
+    put(window.start, window.db);
+    put(window.end, window.db);
+    put(window.end + fade, baseDb);
+  }
+  const frames = [...map.entries()].sort((a,b) => a[0]-b[0]).map(([time,db]) => ({ time, db }));
+  if (levelDb === undefined && pan === undefined && !frames.length) throw new Error("levelDb_pan_keyframes_or_ducking_required");
+
+  let body = HELPERS + 'var seq=__sequence(' + (sequence ? js(sequence) : "null") + ');var clip=__clip(seq,' + js({ ...target, trackType: "audio" }) + ');var comp=__component(clip,"Volume");if(!comp)throw new Error("Volume component not found");var OFFSET=15;';
+  if (levelDb !== undefined || frames.length) body += 'var prop=__property(comp,"Level");if(!prop)throw new Error("Volume Level property not found");';
   if (levelDb !== undefined) body += 'var linear=Math.pow(10,(' + js(levelDb) + '-OFFSET)/20);prop.setValue(linear,true);';
-  body += 'var frames=' + js(frames) + ';for(var i=0;i<frames.length;i++){var linearValue=Math.pow(10,(frames[i].db-OFFSET)/20);__setKey(prop,frames[i].time,linearValue);}return JSON.stringify({success:true,keyframes:frames});';
+  if (frames.length) body += 'var frames=' + js(frames) + ';for(var i=0;i<frames.length;i++){var linearValue=Math.pow(10,(frames[i].db-OFFSET)/20);__setKey(prop,frames[i].time,linearValue);}';
+  if (pan !== undefined) body += 'var panProp=__property(comp,"Pan");if(!panProp)throw new Error("Volume Pan property not found");panProp.setValue(' + js(pan) + ',true);';
+  body += 'return JSON.stringify({success:true,operation:' + js(operation) + ',levelDb:' + (levelDb===undefined?"null":js(levelDb)) + ',pan:' + (pan===undefined?"null":js(pan)) + ',keyframes:' + js(frames) + ',duckingWindows:' + js(windows.length) + '});';
   return { ...params, script: wrapScript(body), compiledBy: "adobe-mcp" };
 }
 

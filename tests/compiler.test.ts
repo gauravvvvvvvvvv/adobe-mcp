@@ -67,6 +67,43 @@ test("Premiere motion, audio and export compilers emit host operations", () => {
   assert.match(render, /encodeSequence/);
 });
 
+test("Premiere razor, pan, ducking and track mute compile into safe host operations", () => {
+  const razor = scriptFor("premiere.timeline.edit", {
+    operation: "razor",
+    target: { trackType: "video", trackIndex: 1 },
+    time: 12.5,
+    fps: 30
+  });
+  parses(razor);
+  assert.match(razor, /\.razor\(tc\)/);
+  assert.match(razor, /timecode/);
+
+  const pan = scriptFor("premiere.audio.mix", {
+    target: { trackIndex: 0, clipIndex: 0 },
+    pan: -25
+  });
+  parses(pan);
+  assert.match(pan, /Volume Pan property not found/);
+
+  const duck = scriptFor("premiere.audio.mix", {
+    target: { trackIndex: 0, clipIndex: 0 },
+    baseDb: -6,
+    fadeSeconds: 0.2,
+    duckingWindows: [{ start: 2, end: 4, db: -20 }]
+  });
+  parses(duck);
+  assert.match(duck, /setValueAtKey/);
+  assert.match(duck, /duckingWindows/);
+
+  const mute = scriptFor("premiere.audio.mix", {
+    operation: "trackMute",
+    trackIndex: 1,
+    muted: true
+  });
+  parses(mute);
+  assert.match(mute, /setMute\(1\)/);
+});
+
 test("After Effects compilers parse and use undo groups", () => {
   const comp = scriptFor("after-effects.composition.manage", {
     operation: "create", name: "Main", width: 1920, height: 1080, duration: 5, frameRate: 30
