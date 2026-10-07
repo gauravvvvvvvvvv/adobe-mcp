@@ -20,7 +20,7 @@ export class LocalBridgeBroker {
   private wss?: WebSocketServer;
   private readonly clients = new Map<AdobeApp, WebSocket>();
   private readonly pending = new Map<string, Pending>();
-  private listenPort: number;
+  private readonly listenPort: number;
 
   constructor(port = Number.parseInt(process.env.ADOBE_MCP_BRIDGE_PORT ?? "38470", 10)) {
     this.listenPort = port;
@@ -49,20 +49,23 @@ export class LocalBridgeBroker {
 
     await new Promise<void>((resolve, reject) => {
       const onError = (error: NodeJS.ErrnoException) => {
+        this.server?.off("listening", onListening);
         if (error.code === "EADDRINUSE") {
-          this.listenPort += 1;
-          this.server!.listen(this.listenPort, "127.0.0.1");
+          reject(new Error(
+            `Adobe MCP bridge port ${this.listenPort} is already in use. ` +
+            "Run one Adobe MCP instance per machine for now, or set ADOBE_MCP_BRIDGE_PORT consistently in both the server and host adapters."
+          ));
           return;
         }
         reject(error);
       };
-      this.server!.on("error", onError);
-      this.server!.listen(this.listenPort, "127.0.0.1", () => {
-        this.server!.off("error", onError);
-        const address = this.server!.address();
-        if (address && typeof address === "object") this.listenPort = address.port;
+      const onListening = () => {
+        this.server?.off("error", onError);
         resolve();
-      });
+      };
+      this.server!.once("error", onError);
+      this.server!.once("listening", onListening);
+      this.server!.listen(this.listenPort, "127.0.0.1");
     });
 
     return this.listenPort;
@@ -116,8 +119,8 @@ export class LocalBridgeBroker {
           return;
         }
 
-        if (message.type === "event") {
-          if (message.event === "context") this.state.setContext(app, message.data);
+        if (message.type === "event" && message.event === "context") {
+          this.state.setContext(app, message.data);
         }
       } catch {
         socket.send(JSON.stringify({ type: "error", error: "invalid_json" }));
@@ -134,7 +137,7 @@ export class LocalBridgeBroker {
 
   async invoke(app: AdobeApp, op: string, params: Record<string, unknown>, timeoutMs = 120_000): Promise<BridgeResult> {
     const socket = this.clients.get(app);
-    if (!socket || socket.readyState !== socket.OPEN) {
+    if (!socket || socket.readyState !== 1) {
       return { type: "result", id: "", ok: false, error: `${app}_adapter_not_connected` };
     }
 

@@ -31,20 +31,25 @@ function roots(): string[] {
 
 export async function discoverAdobeInstalls(): Promise<DiscoveredInstall[]> {
   const result: DiscoveredInstall[] = [];
+
   for (const root of roots()) {
     if (!(await exists(root))) continue;
-    let entries: Awaited<ReturnType<typeof readdir>>;
+
     try {
-      entries = await readdir(root, { withFileTypes: true });
+      const entries = await readdir(root, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const name = entry.name;
+        if (
+          platform() === "darwin" &&
+          !/adobe|photoshop|illustrator|premiere|after effects|audition|media encoder|indesign|animate|lightroom|acrobat|bridge|substance/i.test(name)
+        ) continue;
+        result.push({ name, path: join(root, name) });
+      }
     } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const name = entry.name;
-      if (platform() === "darwin" && !/adobe|photoshop|illustrator|premiere|after effects|audition|media encoder|indesign|animate|lightroom|acrobat|bridge|substance/i.test(name)) continue;
-      result.push({ name, path: join(root, name) });
+      // An unreadable install root should not stop MCP startup.
     }
   }
+
   return result.sort((a, b) => a.name.localeCompare(b.name));
 }

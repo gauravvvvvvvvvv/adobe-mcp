@@ -21,21 +21,26 @@ The AI searches compact capability IDs such as `premiere.timeline.edit`, then se
 
 ## No-refresh design
 
-The MCP process owns a localhost bridge. Adobe host adapters connect to it and automatically reconnect. You can start MCP first, open Photoshop later, close Premiere, reopen After Effects, etc. The MCP server does not need to be restarted just because an Adobe application changed.
+The MCP process owns a localhost bridge at `ws://127.0.0.1:38470`. Adobe host adapters connect to it and automatically reconnect. You can start MCP first, open Photoshop later, close Premiere, reopen After Effects, etc. The MCP server does not need to be restarted just because an Adobe application changed.
 
-Default bridge:
-
-`ws://127.0.0.1:38470`
+The bridge port is intentionally fixed instead of silently hopping ports, because installed host adapters need a stable localhost endpoint.
 
 Health endpoint:
 
 `http://127.0.0.1:38470/health`
 
-If the default port is occupied, the broker advances to the next free port for the current process.
-
 ## Current state
 
-v0.1 lays down the universal broker, capability catalog, local install discovery and MCP facade. The next commits add the actual host adapters, beginning with Photoshop UXP, Premiere CEP, After Effects ExtendScript/ScriptUI and Illustrator scripting.
+v0.1 includes:
+
+- universal MCP facade
+- compact capability search instead of hundreds of advertised tools
+- localhost WebSocket broker with automatic adapter reconnect
+- compact in-memory host context cache
+- local Adobe install discovery
+- Photoshop UXP adapter
+- universal CEP adapter for Premiere Pro, After Effects, Illustrator and InDesign
+- Windows manual install/uninstall scripts for the CEP adapter
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 
@@ -50,6 +55,18 @@ npm run build
 npm run doctor
 npm run dev
 ```
+
+### Windows CEP install
+
+From PowerShell in the repository:
+
+```powershell
+npm run install:windows
+```
+
+This copies the universal CEP bridge into the current user's Adobe CEP extensions directory and enables CEP local-development mode. Restart an already-running supported Adobe host once so it discovers the newly installed extension.
+
+For Photoshop development, load `adapters/photoshop-uxp/manifest.json` with Adobe UXP Developer Tool. Packaging the UXP adapter for manual installation is a later task.
 
 MCP client configuration after a local/global package install:
 
