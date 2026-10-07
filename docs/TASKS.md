@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: machine-readable Adobe API/tooling limit contract after `b38e9cf2`.
+Last updated commit target: manual release/readiness gate after `fa3d6ca6`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -117,6 +117,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Installation / operations
 
+- [x] `npm run release:check` validates adapter sources, UXP manifests, package/no-CI contract and rejects any unexpected implementation partials while reporting external release gates.
 - [x] Windows CEP manual install/uninstall.
 - [x] No GitHub Actions / CI.
 - [~] UXP adapter now supports arbitrary fixed local paths via fullAccess; packaged/manual CCX installer still pending.

@@ -35,7 +35,8 @@
     "setup:codex": "tsx src/setup-client.ts --client codex",
     "setup:claude": "tsx src/setup-client.ts --client claude",
     "prepack": "npm run check",
-    "accept:premiere": "tsx src/acceptance-runner.ts"
+    "accept:premiere": "tsx src/acceptance-runner.ts",
+    "release:check": "tsx src/release-check.ts"
   },
   "keywords": [
     "mcp",
