@@ -19,6 +19,7 @@ import { planRepairs } from "./repair.js";
 import { expandRecipe, listRecipes } from "./recipes.js";
 import type { LocalBridgeBroker } from "./broker.js";
 import { invokeAdobeCapability } from "./invoke.js";
+import { runtimeLimits } from "./limits.js";
 import type { AdobeApp } from "./types.js";
 
 type JobStatus = "planned" | "executing" | "awaiting_review" | "needs_repair" | "completed" | "failed";
@@ -162,6 +163,13 @@ export class CreativeRuntime {
   }
 
   async execute(capability: string, params: Record<string, unknown>, timeoutMs = 120_000): Promise<unknown> {
+    if (capability === "creative.runtime.limits") {
+      return {
+        limits: runtimeLimits(typeof params.host === "string" ? params.host : undefined),
+        note: "These are explicit host/tooling ceilings, not silent failures. Prefer the documented fallback and verify outputs."
+      };
+    }
+
     if (capability === "creative.repair.plan") {
       if (typeof params.jobId === "string") {
         const job = await this.load(params.jobId);

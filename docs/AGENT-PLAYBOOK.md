@@ -67,7 +67,7 @@ Adobe hosts reconnect to the fixed local broker; opening/reopening a host does n
 
 ## API ceilings
 
-Do not fake unsupported host behavior. Premiere's legacy API does not expose the entire Audio Track Mixer automation surface; caption styling/readback varies by version; Illustrator cannot reliably author every brush/pattern definition; supported UXP CCX packaging requires Adobe's UXP Developer Tool.
+Do not fake unsupported host behavior. Query `creative.runtime.limits` when a requested operation appears to hit a host/API ceiling. Premiere's legacy API does not expose the entire Audio Track Mixer automation surface; caption styling/readback varies by version; Illustrator cannot reliably author every brush/pattern definition; supported UXP CCX packaging requires Adobe's UXP Developer Tool.
 
 ## Delivery rule
 

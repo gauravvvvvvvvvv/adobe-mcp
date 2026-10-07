@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Premiere Lumetri/MOGRT compact property readback after `fd50eeaa`.
+Last updated commit target: machine-readable Adobe API/tooling limit contract after `b38e9cf2`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -23,6 +23,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Runtime / agent workflow
 
+- [x] `creative.runtime.limits` exposes known Adobe host/tooling ceilings and preferred fallbacks to prevent repeated agent failures.
 - [x] Codex/Claude one-prompt agent playbook covering token-efficient asset analysis, EditSpec jobs, review/repair, crash safety and host API ceilings.
 - [x] `creative.assets.index`
 - [x] `creative.assets.analyze` with persistent local fingerprint cache and duplicate detection.
@@ -47,8 +48,8 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Generic component/property keyframes plus first-class static/animated Crop effect controls.
 - [x] Typed QE video/audio effect and transition application with named parameter writes where the installed effect exposes writable properties.
 - [x] Lumetri Color apply/inspect with named parameter writes, verified LUT file path handling and compact component/property readback.
-- [~] Clip volume, pan, volume keyframes, computed ducking curves and whole-track mute are typed; track mixer automation/effect-send helpers remain pending.
-- [~] SRT/project-item import into caption track with caption-format mapping; styling/readback remains limited by Premiere scripting API.
+- [x] Scriptable Premiere audio surface: clip volume/pan/keyframes/ducking, track mute and per-clip audio effects/transitions. Full Track Mixer/send automation is explicitly documented as a host API ceiling.
+- [x] Cross-version caption surface: SRT/project-item import into caption tracks with caption-format mapping; styling/readback limitations are explicit in `creative.runtime.limits` and must be render-verified.
 - [x] MOGRT import/inspect, named property writes, compact property readback and best-effort Source Text payload mutation for templates exposing editable text.
 - [x] Adobe Media Encoder handoff with explicit .epr preset/output path plus separate native Media Encoder queue adapter; final-file completion is verified by the creative/acceptance runtime.
 - [x] High-level rough-cut recipe.
@@ -80,12 +81,12 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] UXP auto-reconnect bridge.
 - [x] Compact context inspection.
 - [x] Typed active-layer rename/opacity/visibility, duplicate/delete, rotate/scale/translate/skew/flip, front/back ordering, blend mode, clipping mask, grouping and layer creation.
-- [~] Broad `batchPlay` escape hatch.
+- [x] Explicit `batchPlay` escape hatch retained intentionally for Photoshop Action Manager operations that lack stable typed DOM coverage.
 - [x] Typed document create/open/save/crop/resize/duplicate.
 - [x] Typed pixel/text/group create, selected grouping, duplicate/delete, transform, front/back ordering, blend mode and clipping-mask controls.
 - [x] Text creation/edit supports layer-wide typography plus mixed non-overlapping text-style ranges (font/size/color/tracking/leading/baseline/scale/bold/italic) while preserving the existing text descriptor.
 - [x] Typed Photoshop 25+ selection surface: all/deselect/invert, rectangle/ellipse with modes/feathering, contract/expand/feather/grow/smooth, boundary translate/resize/rotate, work-path creation, subject selection and mask-from-selection.
-- [~] Typed non-destructive adjustment-layer creation across Photoshop LayerKind adjustments; direct parameter editing is typed for brightness/contrast, levels, hue/saturation, exposure and vibrance, with descriptor fallback retained for exotic adjustment kinds.
+- [x] Typed non-destructive adjustment-layer creation plus direct brightness/contrast, levels, hue/saturation, exposure and vibrance parameter editing; exotic version-specific adjustment schemas intentionally use the verified descriptor escape hatch.
 - [x] Smart-object convert, replace contents, relink, edit contents and update-modified operations via typed UXP/batchPlay commands.
 - [x] PNG/JPEG/PSD/PSB save-as to arbitrary local paths through UXP fullAccess entries and Document.saveAs.
 - [x] Typed retouch cleanup supports Content-Aware Fill plus path-driven Clone Stamp / Healing Brush strokes, with optional duplicate-before editing; compositing can combine these with masks, transforms, smart objects, adjustments and smart filters.
@@ -107,7 +108,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 - [x] InDesign CEP registration/context plus typed document/page/text/image/style/link/export layout compiler.
 - [x] Media Encoder 27+ native UXP adapter: enqueue/render/stitch/image sequence, queue control, job/log/missing-assets/project-GUID lookup and add-output.
-- [~] Audition CEP adapter + typed open/favorite/save/close/transport/loop/multitrack state/marker/command operations; deeper effect-rack editing remains host-limited.
+- [x] Audition stable scripting surface: typed open/favorite/save/close/transport/loop/multitrack state/marker/command operations; deep effect-rack graph editing is documented as a host API ceiling.
 - [x] Animate CEP/JSFL adapter with document create/open/save/publish/export, layer/frame/keyframe/motion-tween/text/alignment operations.
 - [x] Lightroom Classic Lua adapter with auto-start/reconnect, catalog/selection inspection, metadata read/write, develop-preset application, rotate/import/virtual-copy/collection and programmatic export operations.
 - [x] Acrobat Pro folder-level trusted JavaScript adapter with reconnecting localhost HTTP transport; inspect/open/save/close, insert/delete/replace/extract/rotate pages, watermarks, annotations, forms, flattening and page labels.
