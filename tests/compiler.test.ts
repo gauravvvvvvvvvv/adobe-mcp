@@ -243,6 +243,51 @@ test("Illustrator alignment gradient symbols trace and PDF export compile", () =
   assert.match(pdf, /saveAs/);
 });
 
+test("InDesign layout compiler covers document text image styles links and export", () => {
+  const doc = scriptFor("indesign.document.layout", { operation: "createDocument", pageWidth: 210, pageHeight: 297, pages: 4 });
+  parses(doc);
+  assert.match(doc, /documents\.add/);
+  assert.match(doc, /documentPreferences\.pageWidth/);
+
+  const text = scriptFor("indesign.document.layout", {
+    operation: "textFrame",
+    page: 0,
+    bounds: [20,20,80,180],
+    contents: "Quarterly Review",
+    paragraphStyle: "Title"
+  });
+  parses(text);
+  assert.match(text, /textFrames\.add/);
+  assert.match(text, /geometricBounds/);
+
+  const image = scriptFor("indesign.document.layout", {
+    operation: "imageFrame",
+    path: "C:\\assets\\hero.jpg",
+    bounds: [90,20,250,180]
+  });
+  parses(image);
+  assert.match(image, /rectangles\.add/);
+  assert.match(image, /\.place\(f\)/);
+
+  const style = scriptFor("indesign.document.layout", {
+    operation: "paragraphStyle",
+    name: "Body",
+    font: "Arial",
+    pointSize: 11,
+    leading: 14
+  });
+  parses(style);
+  assert.match(style, /paragraphStyles/);
+
+  const pdf = scriptFor("indesign.document.layout", {
+    operation: "export",
+    path: "C:\\out\\review.pdf",
+    format: "pdf"
+  });
+  parses(pdf);
+  assert.match(pdf, /ExportFormat\.PDF_TYPE/);
+});
+
 test("Animate Audition and Bridge semantic compilers generate parseable scripts", () => {
   const animate = scriptFor("animate.timeline.author", {
     operation: "addText",

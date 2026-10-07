@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: repair-planner test typing cleanup after `61a1aab5`.
+Last updated commit target: typed InDesign layout compiler after `151b3339`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -103,7 +103,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Other Adobe hosts
 
-- [x] InDesign CEP registration and context path.
+- [x] InDesign CEP registration/context plus typed document/page/text/image/style/link/export layout compiler.
 - [x] Media Encoder 27+ native UXP adapter: enqueue/render/stitch/image sequence, queue control, job/log/missing-assets/project-GUID lookup and add-output.
 - [~] Audition CEP adapter + typed open/favorite/save/close/transport/loop/multitrack state/marker/command operations; deeper effect-rack editing remains host-limited.
 - [x] Animate CEP/JSFL adapter with document create/open/save/publish/export, layer/frame/keyframe/motion-tween/text/alignment operations.
