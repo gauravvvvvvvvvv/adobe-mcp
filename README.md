@@ -2,7 +2,7 @@
 
 A local-first MCP server for controlling Adobe creative applications through one compact, state-aware interface.
 
-The project is starting with **Premiere Pro, After Effects, Photoshop and Illustrator**, then expands to Media Encoder, Audition, InDesign, Animate, Lightroom Classic, Acrobat, Bridge and Substance 3D products where useful automation APIs exist.
+The current v0.1 runtime covers **Premiere Pro, After Effects, Photoshop, Illustrator, Media Encoder, Audition, InDesign, Animate, Lightroom Classic, Acrobat Pro, Bridge and Substance 3D Painter** through the best local automation surface each host exposes.
 
 ## Why this architecture
 
@@ -39,14 +39,15 @@ v0.1 includes:
 - persistent hashed host context cache
 - local Adobe install discovery
 - Photoshop UXP adapter
-- universal CEP adapter for Premiere Pro, After Effects, Illustrator and InDesign
-- Windows and macOS install/uninstall scripts for the CEP adapter
+- universal CEP adapter for Premiere Pro, After Effects, Illustrator, InDesign, Animate, Audition and Bridge
+- Media Encoder UXP, Lightroom Classic Lua, Acrobat trusted-JavaScript and Substance 3D Painter Python adapters
+- Windows and macOS install/uninstall scripts for local host adapters
 - persistent EditSpec jobs with checkpoint/rollback, artifact manifests and crash-safe resume
-- reference-video scene/pacing/silence/loudness analysis
+- cached bulk source fingerprinting/duplicate detection plus reference-video scene/pacing/silence/loudness analysis
 - reusable professional edit/motion/compositing recipes
 - typed Premiere, After Effects, Photoshop and Illustrator semantic operations
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/CAPABILITIES.md](docs/CAPABILITIES.md), and [docs/AGENT-PLAYBOOK.md](docs/AGENT-PLAYBOOK.md).
 
 ## Manual development
 
@@ -125,3 +126,17 @@ Use `--force` only when you intentionally want to replace an existing MCP server
 ## Reality check
 
 The core creative workflow is implemented and testable without exposing hundreds of model-facing tools. Real-host acceptance still depends on the Adobe versions installed on the target machine. Run `npm run doctor`, then follow `docs/ACCEPTANCE.md` before treating a particular host/version combination as production-verified.
+
+## One-prompt creative jobs
+
+Codex/Claude should treat Adobe MCP as an execution, state, and verification runtime rather than a bag of low-level tools. For a large video job it should analyze sources, build one EditSpec, checkpoint the working project, run semantic operations, export, validate, generate review artifacts, visually inspect them, and repair failures before delivery.
+
+See `docs/AGENT-PLAYBOOK.md` for the operating contract.
+
+For a real Premiere workstation acceptance pass:
+
+```bash
+npm run accept:premiere -- --scenario D:/path/to/acceptance.json
+```
+
+Start from `docs/acceptance-premiere.example.json` and use an expendable project copy.

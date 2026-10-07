@@ -230,13 +230,13 @@ Do not copy blindly. Normalize behavior into this project's compact semantic arc
 
 ## Immediate implementation order
 
-Follow the live checklist in `docs/TASKS.md`. All originally targeted Adobe host families now have an adapter path. Current priority is:
+Follow the live checklist in `docs/TASKS.md`. The core semantic/runtime work is now largely complete. Current priority is:
 
-1. close remaining high-value core-host gaps (Premiere time-remap/crop/mixer, AE native text animators/Bezier paths/blend modes, Photoshop advanced retouch)
-2. expand doctor/install verification for Lightroom, Acrobat, Substance and Media Encoder
-3. add a local acceptance runner that guides a real-host master-edit + repair pass
-4. package UXP adapters with Adobe's supported UXP Developer Tool workflow on a machine that has it
-5. run real-host Premiere/AE/Photoshop/Illustrator/Painter acceptance on the user's workstation and record results
+1. run the guarded real-host Premiere acceptance scenario on the target workstation and repair any version-specific failures
+2. run real-host Photoshop/AE/Illustrator/Painter smoke passes and record host/version behavior
+3. package UXP adapters with Adobe's supported UXP Developer Tool workflow on a machine that has it
+4. add version-specific fallbacks only when a real host demonstrates a reproducible incompatibility
+5. keep `docs/AGENT-PLAYBOOK.md` aligned with workflow changes
 
 ## Installation contract
 
@@ -245,3 +245,7 @@ Follow the live checklist in `docs/TASKS.md`. All originally targeted Adobe host
 - Photoshop distribution packages must be produced as `.ccx` with Adobe UXP Developer Tool; do not hand-roll the ZIP format and call it a supported installer.
 - `adobe-mcp-setup --client codex|claude` registers the local stdio server through each client's own CLI. It does not overwrite an existing `adobe` entry without `--force`.
 - Run `npm run doctor` after installation.
+
+## Agent operating document
+
+`docs/AGENT-PLAYBOOK.md` is the concise execution contract intended to be given directly to Codex/Claude Code. Keep this handover architectural and the playbook operational.

@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: Photoshop mixed-range type and typed adjustment-layer parameters after `a2d811f1`.
+Last updated commit target: Codex/Claude one-prompt operating playbook after `71b0250a`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -23,6 +23,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Runtime / agent workflow
 
+- [x] Codex/Claude one-prompt agent playbook covering token-efficient asset analysis, EditSpec jobs, review/repair, crash safety and host API ceilings.
 - [x] `creative.assets.index`
 - [x] `creative.assets.analyze` with persistent local fingerprint cache and duplicate detection.
 - [x] `creative.editspec.validate`
