@@ -386,7 +386,15 @@ async function manageSelection(params) {
   return runModal("selection", async () => {
     const doc = requireDocument();
     const selection = doc.selection;
-    const operation = params.operation;
+    const operation = String(params.operation || "selectAll");
+
+    const selectionMode = (value) => {
+      const key = String(value || "replace").replace(/[^A-Za-z]/g, "").toUpperCase();
+      const aliases = { ADD: "EXTEND", EXTEND: "EXTEND", SUBTRACT: "SUBTRACT", INTERSECT: "INTERSECT", REPLACE: "REPLACE" };
+      const resolved = aliases[key] || key;
+      if (!constants.SelectionType[resolved]) throw new Error("Unknown selection mode: " + value);
+      return constants.SelectionType[resolved];
+    };
 
     if (operation === "selectAll") {
       if (!selection.selectAll) throw new Error("Selection DOM requires Photoshop 25+");
@@ -400,10 +408,45 @@ async function manageSelection(params) {
       await selection.inverse();
     } else if (operation === "rectangle") {
       if (!selection.selectRectangle) throw new Error("Selection DOM requires Photoshop 25+");
-      await selection.selectRectangle(bounds(params.bounds), constants.SelectionType.REPLACE);
+      await selection.selectRectangle(bounds(params.bounds), selectionMode(params.mode), Math.max(0, numeric(params.feather, 0)), params.antiAlias !== false);
     } else if (operation === "ellipse") {
       if (!selection.selectEllipse) throw new Error("Selection DOM requires Photoshop 25+");
-      await selection.selectEllipse(bounds(params.bounds), constants.SelectionType.REPLACE);
+      await selection.selectEllipse(bounds(params.bounds), selectionMode(params.mode), Math.max(0, numeric(params.feather, 0)), params.antiAlias !== false);
+    } else if (operation === "contract") {
+      if (!selection.contract) throw new Error("Selection contract requires Photoshop 25+");
+      await selection.contract(Math.max(1, Math.min(500, Math.round(numeric(params.by, 1)))), params.applyEffectAtCanvasBounds === true);
+    } else if (operation === "expand") {
+      if (!selection.expand) throw new Error("Selection expand requires Photoshop 25+");
+      await selection.expand(Math.max(1, Math.min(500, Math.round(numeric(params.by, 1)))), params.applyEffectAtCanvasBounds === true);
+    } else if (operation === "feather") {
+      if (!selection.feather) throw new Error("Selection feather requires Photoshop 25+");
+      await selection.feather(Math.max(0.1, Math.min(1000, numeric(params.by, 1))), params.applyEffectAtCanvasBounds === true);
+    } else if (operation === "grow") {
+      if (!selection.grow) throw new Error("Selection grow requires Photoshop 25+");
+      await selection.grow(Math.max(0, Math.min(255, Math.round(numeric(params.tolerance, 32)))), params.antiAlias !== false);
+    } else if (operation === "smooth") {
+      if (!selection.smooth) throw new Error("Selection smooth requires Photoshop 25+");
+      await selection.smooth(Math.max(1, Math.min(500, Math.round(numeric(params.radius, 4)))), params.applyEffectAtCanvasBounds === true);
+    } else if (operation === "translateBoundary") {
+      if (!selection.translateBoundary) throw new Error("Selection translateBoundary requires Photoshop 25+");
+      await selection.translateBoundary(numeric(params.deltaX, 0), numeric(params.deltaY, 0));
+    } else if (operation === "resizeBoundary") {
+      if (!selection.resizeBoundary) throw new Error("Selection resizeBoundary requires Photoshop 25+");
+      const anchorName = String(params.anchor || "MIDDLECENTER").replace(/[^A-Za-z]/g, "").toUpperCase();
+      const anchor = constants.AnchorPosition[anchorName] || constants.AnchorPosition.MIDDLECENTER;
+      const interpolationName = String(params.interpolation || "BICUBIC").replace(/[^A-Za-z]/g, "").toUpperCase();
+      const interpolation = constants.InterpolationMethod[interpolationName] || constants.InterpolationMethod.BICUBIC;
+      await selection.resizeBoundary(numeric(params.horizontal, 100), numeric(params.vertical, numeric(params.horizontal, 100)), anchor, interpolation);
+    } else if (operation === "rotateBoundary") {
+      if (!selection.rotateBoundary) throw new Error("Selection rotateBoundary requires Photoshop 25+");
+      const anchorName = String(params.anchor || "MIDDLECENTER").replace(/[^A-Za-z]/g, "").toUpperCase();
+      const anchor = constants.AnchorPosition[anchorName] || constants.AnchorPosition.MIDDLECENTER;
+      await selection.rotateBoundary(numeric(params.degrees, 0), anchor);
+    } else if (operation === "makeWorkPath") {
+      if (!selection.makeWorkPath) throw new Error("Selection makeWorkPath requires Photoshop 25+");
+      const path = await selection.makeWorkPath(Math.max(0.5, Math.min(10, numeric(params.tolerance, 2))));
+      if (typeof params.name === "string" && params.name) path.name = params.name;
+      return { operation, path: { name: path.name, id: path.id ?? null }, bounds: selection.bounds ?? null };
     } else if (operation === "subject") {
       await action.batchPlay([{
         _obj: "autoCutout",
@@ -419,10 +462,10 @@ async function manageSelection(params) {
         _options: { dialogOptions: "silent" }
       }], {});
     } else {
-      throw new Error("Supported selection operations: selectAll, deselect, inverse, rectangle, ellipse, subject, maskFromSelection");
+      throw new Error("Supported selection operations: selectAll, deselect, inverse, rectangle, ellipse, contract, expand, feather, grow, smooth, translateBoundary, resizeBoundary, rotateBoundary, makeWorkPath, subject, maskFromSelection");
     }
 
-    return { operation, bounds: selection.bounds ?? null };
+    return { operation, bounds: selection.bounds ?? null, solid: selection.solid ?? null };
   });
 }
 
