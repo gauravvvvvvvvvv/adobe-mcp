@@ -10,4 +10,8 @@ test("MCP stdio entrypoint uses the v2 server factory lifecycle", async () => {
   assert.match(source, /stdioHandle\.close\(\)/);
   assert.doesNotMatch(source, /serveStdio\(server\)/);
   assert.doesNotMatch(source, /await serveStdio/);
+  assert.match(source, /function compactForModel/);
+  assert.match(source, /resultMode: z\.enum\(\["compact", "full", "none"\]\)/);
+  assert.match(source, /default\("compact"\)/);
+  assert.match(source, /formatBatchResult/);
 });

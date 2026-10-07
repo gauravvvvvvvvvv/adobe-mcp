@@ -18,6 +18,53 @@ function json(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value) }] };
 }
 
+function compactForModel(value: unknown, depth = 0): unknown {
+  if (value === null || value === undefined || typeof value === "number" || typeof value === "boolean") return value;
+  if (typeof value === "string") return value.length <= 500 ? value : value.slice(0, 500) + "…";
+  if (depth >= 3) {
+    if (Array.isArray(value)) return { count: value.length, truncated: true };
+    if (typeof value === "object") return { keys: Object.keys(value as Record<string, unknown>).slice(0, 20), truncated: true };
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    if (value.length <= 8) return value.map((item) => compactForModel(item, depth + 1));
+    return {
+      count: value.length,
+      items: value.slice(0, 5).map((item) => compactForModel(item, depth + 1)),
+      truncated: true
+    };
+  }
+  if (typeof value === "object") {
+    const source = value as Record<string, unknown>;
+    const priority = [
+      "id","jobId","operationId","operation","status","success","ok","error",
+      "name","path","outputPath","sequence","effect","count","requested","reviewed",
+      "truncated","cacheHits","warnings","issues","artifacts","result","writes"
+    ];
+    const keys = [...priority.filter((key) => key in source), ...Object.keys(source).filter((key) => !priority.includes(key))];
+    const output: Record<string, unknown> = {};
+    for (const key of keys.slice(0, 18)) {
+      if (key === "script" || key === "descriptors" || key === "raw") continue;
+      output[key] = compactForModel(source[key], depth + 1);
+    }
+    if (Object.keys(source).length > Object.keys(output).length) output._truncatedKeys = true;
+    return output;
+  }
+  return String(value);
+}
+
+function formatBatchResult(
+  capability: string,
+  result: { ok?: boolean; error?: unknown; data?: unknown } & Record<string, unknown>,
+  mode: "compact" | "full" | "none"
+) {
+  if (mode === "full") return { capability, ...result };
+  const base: Record<string, unknown> = { capability, ok: result.ok !== false };
+  if (result.error !== undefined) base.error = result.error;
+  if (mode === "compact" && result.data !== undefined) base.data = compactForModel(result.data);
+  return base;
+}
+
 const broker = new LocalBridgeBroker();
 await broker.start();
 const runtime = new CreativeRuntime(broker);
@@ -27,7 +74,7 @@ const server = new McpServer(
   { name: "adobe-mcp", version: ADOBE_MCP_VERSION },
   {
     instructions:
-      "Adobe MCP is a local creative-agent runtime. For one-prompt creative work, use creative.assets.analyze for large source sets, analyze references, create and validate an EditSpec, then create/run one persistent creative job. Use get_capability for an on-demand compact parameter guide instead of guessing call shapes. Use creative.runtime.limits when a request may hit an Adobe API ceiling. The agent must inspect rendered/preview artifacts before recording a passing creative.job.review. Reuse inspect_context.contextHash as knownHash on later reads. Host adapters reconnect without restarting the MCP server."
+      "Adobe MCP is a local creative-agent runtime. For one-prompt work, analyze/fingerprint sources, use creative.assets.review for shortlisted visuals and creative.audio.analyze for rhythm when useful, then create/run one persistent EditSpec job. Use get_capability instead of guessing call shapes and creative.runtime.limits for host/API ceilings. Keep batch_execute in compact result mode unless full host payloads are needed. Inspect rendered/review artifacts before passing creative.job.review. Reuse inspect_context.contextHash as knownHash. Host adapters reconnect without restarting MCP."
   }
 );
 
@@ -149,18 +196,21 @@ server.registerTool(
         params: z.record(z.string(), z.unknown()).optional().default({})
       })).min(1).max(200),
       stopOnError: z.boolean().optional().default(true),
+      resultMode: z.enum(["compact", "full", "none"]).optional().default("compact"),
       timeoutMsPerStep: z.number().int().min(1000).max(1800000).optional().default(120000)
     }),
     annotations: write
   },
-  async ({ steps, stopOnError, timeoutMsPerStep }) => {
+  async ({ steps, stopOnError, resultMode, timeoutMsPerStep }) => {
     const results: unknown[] = [];
+    let allOk = true;
     for (const step of steps) {
       const result = await invokeCapability(step.capability, step.params, timeoutMsPerStep);
-      results.push({ capability: step.capability, ...result });
+      if (!result.ok) allOk = false;
+      results.push(formatBatchResult(step.capability, result, resultMode));
       if (stopOnError && !result.ok) break;
     }
-    return json({ ok: results.every((r) => typeof r === "object" && r !== null && (r as { ok?: boolean }).ok !== false), results });
+    return json({ ok: allOk, resultMode, results });
   }
 );
 

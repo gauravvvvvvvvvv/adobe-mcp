@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: MCP TypeScript v2 stdio factory/lifecycle fix after `a0001405`.
+Last updated commit target: token-bounded batch execution results after `260ced5e`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -23,6 +23,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Runtime / agent workflow
 
+- [x] `batch_execute` defaults to compact result mode with bounded strings/arrays/object depth; full or no-result modes remain explicit when needed.
 - [x] 2026-07-28 MCP v2 `serveStdio` factory lifecycle with broker cleanup on stdio disconnect and explicit handle shutdown.
 - [x] `creative.audio.analyze` locally extracts silence regions, energy onsets and tempo estimates with ffmpeg so beat-aware planning does not require model-side audio decoding.
 - [x] Cache-aware `creative.assets.review` batches bounded source contact-sheet generation with optional proxies/waveforms and reuses fresh artifacts across planning/repair passes.

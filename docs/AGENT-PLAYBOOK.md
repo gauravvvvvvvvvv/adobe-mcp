@@ -31,7 +31,7 @@ A successful Adobe command is not a successful edit.
 - Pass `knownHash` after the first host-context read.
 - Search capabilities narrowly.
 - Prefer a recipe or semantic operation over many primitive calls.
-- Use `batch_execute` for independent compact mutations.
+- Use `batch_execute` for independent compact mutations and keep its default `resultMode: "compact"`; request `"full"` only when exact host readback is necessary.
 - Persist state in one creative job instead of repeating it in prompts.
 
 ## Master video edits
