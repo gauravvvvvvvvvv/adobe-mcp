@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: manual release/readiness gate after `fa3d6ca6`.
+Last updated commit target: on-demand capability parameter guides after `ee085cff`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -23,6 +23,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Runtime / agent workflow
 
+- [x] `get_capability` returns on-demand parameter/operation/example guides for high-value semantic calls while `search_capabilities` remains lean.
 - [x] `creative.runtime.limits` exposes known Adobe host/tooling ceilings and preferred fallbacks to prevent repeated agent failures.
 - [x] Codex/Claude one-prompt agent playbook covering token-efficient asset analysis, EditSpec jobs, review/repair, crash safety and host API ceilings.
 - [x] `creative.assets.index`

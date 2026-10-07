@@ -4,6 +4,7 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
 import { LocalBridgeBroker } from "./broker.js";
 import { getCapability, searchCapabilities } from "./catalog.js";
+import { getCapabilityGuide } from "./capability-guides.js";
 import { CreativeRuntime } from "./creative-runtime.js";
 import { discoverAdobeInstalls } from "./discovery.js";
 import { invokeAdobeCapability } from "./invoke.js";
@@ -25,7 +26,7 @@ const server = new McpServer(
   { name: "adobe-mcp", version: ADOBE_MCP_VERSION },
   {
     instructions:
-      "Adobe MCP is a local creative-agent runtime. For one-prompt creative work, search capabilities for 'creative', index source/reference assets, create and validate an EditSpec, then create/run a creative job. Use the same job ID through review and repair passes. The agent must inspect rendered/preview artifacts before recording a passing creative.job.review. For normal app work, use execute or batch_execute with compact semantic capabilities. Reuse inspect_context.contextHash as knownHash on later reads. Host adapters reconnect without restarting the MCP server."
+      "Adobe MCP is a local creative-agent runtime. For one-prompt creative work, use creative.assets.analyze for large source sets, analyze references, create and validate an EditSpec, then create/run one persistent creative job. Use get_capability for an on-demand compact parameter guide instead of guessing call shapes. Use creative.runtime.limits when a request may hit an Adobe API ceiling. The agent must inspect rendered/preview artifacts before recording a passing creative.job.review. Reuse inspect_context.contextHash as knownHash on later reads. Host adapters reconnect without restarting the MCP server."
   }
 );
 
@@ -81,7 +82,7 @@ server.registerTool(
   },
   async ({ id }) => {
     const capability = getCapability(id);
-    return json(capability ?? { error: "capability_not_found", id });
+    return json(capability ? { ...capability, guide: getCapabilityGuide(id) } : { error: "capability_not_found", id });
   }
 );
 

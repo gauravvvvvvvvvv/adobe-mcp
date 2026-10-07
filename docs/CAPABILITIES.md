@@ -1,6 +1,6 @@
 # Capability map
 
-This is the target surface. Individual host adapters will progressively mark each item as native, partial, fallback, or unavailable for the installed app/version.
+This document summarizes the v0.1 semantic surface. `search_capabilities` stays intentionally compact; call `get_capability` for an on-demand parameter/operation/example guide for common capabilities, and `creative.runtime.limits` for known host/API ceilings. The live completion state remains `docs/TASKS.md`.
 
 ## Premiere Pro
 
