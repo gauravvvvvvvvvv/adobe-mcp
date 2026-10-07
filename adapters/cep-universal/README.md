@@ -1,34 +1,40 @@
 # Universal CEP adapter
 
-One CEP extension currently targets:
+One persistent CEP extension targets:
 
 - Premiere Pro
 - After Effects
 - Illustrator
 - InDesign
 
-It detects the active host and registers only that app's capabilities with the local Adobe MCP broker.
+It detects the active host, registers only that host with the local broker and serializes all `evalScript` calls.
 
-## Why one CEP adapter
+## Architecture
 
-All four hosts can execute their native ExtendScript surface from a CEP panel. Sharing the transport gives us:
+The model does not normally write raw ExtendScript. Semantic operations are compiled inside `src/compilers/` and sent to this adapter as internal scripts.
 
-- one reconnect implementation
-- one install location
-- one serialized `evalScript` queue
-- the same command/result protocol as Photoshop UXP
-- smaller maintenance surface
+Premiere currently has the deepest coverage: project/media management, assembly/edit/speed, keyframes, effects/transitions, color/LUT, audio levels, MOGRT, caption import, Media Encoder handoff and structural QA.
 
-The adapter never fires overlapping `evalScript` calls. They are serialized because overlapping host calls can make CEP/ExtendScript unreliable.
+After Effects has composition/layer creation, generic property animation, text/shape primitives and render queue controls.
 
-## Current handlers
+Illustrator has document/artboard, vector primitives, transforms, appearance/text basics and raster/SVG export.
 
-Each host has compact context inspection. Other semantic operations can temporarily carry an internal `script` parameter while typed compilers are implemented in the MCP/runtime.
-
-The user-facing model should not normally generate raw ExtendScript. The intended end state is that capabilities such as `premiere.timeline.edit` compile into host scripts inside the adapter/runtime.
+InDesign is currently context-only and must not be presented as a full editing adapter.
 
 ## Installation
 
-This is currently a development CEP extension. Copy this directory into a CEP extensions directory and enable CEP debug mode for local unsigned development. Packaging/install helpers will be added manually in a later commit; there is intentionally no CI workflow.
+Windows:
 
-Once the extension is loaded, its WebSocket reconnect loop means the MCP server may be started before or after the Adobe host.
+```powershell
+npm run install:windows
+```
+
+macOS:
+
+```bash
+npm run install:macos
+```
+
+Once discovered by an Adobe host, the adapter reconnects to Adobe MCP automatically. Restarting the MCP is not required when Adobe applications close/reopen.
+
+See `docs/ACCEPTANCE.md` for the real-host release gate.

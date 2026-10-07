@@ -19,7 +19,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 - [x] Review cannot pass without required acceptance criteria.
 - [ ] One-prompt end-to-end master-edit recipe tested against a real Premiere project.
 - [ ] Automatic repair loop exercised against a deliberately broken render.
-- [ ] Stable packaged manual installer for all supported host adapters.
+- [~] CEP installers are scripted on Windows/macOS; Photoshop local-dev setup is scripted, while Adobe-supported distributable `.ccx` packaging must be produced with UXP Developer Tool on a machine that has it.
 
 ## Runtime / agent workflow
 
@@ -124,14 +124,14 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Tests and quality
 
-- [ ] Unit tests for EditSpec validation.
+- [x] Unit tests for EditSpec validation/defaults/rejections.
 - [~] Unit tests cover compiler capability routing; persistent runtime-job tests still pending.
 - [x] Unit tests for script escaping/injection safety.
 - [x] Static syntax tests for generated Premiere/AE/Illustrator ExtendScript output.
-- [ ] Broker reconnect test with mock WebSocket adapter.
-- [ ] Media review/validation tests using generated fixture media.
-- [ ] Manual Premiere smoke-test script/checklist.
-- [ ] Manual AE smoke-test script/checklist.
-- [~] Static Photoshop adapter regression test added; real-host smoke checklist still pending.
-- [ ] Manual Illustrator smoke-test script/checklist.
-- [ ] Full manual end-to-end acceptance checklist.
+- [x] Broker reconnect regression test with mock WebSocket host.
+- [x] Media review/validation regression test using generated ffmpeg fixture media.
+- [x] Manual Premiere smoke-test checklist in `docs/ACCEPTANCE.md`.
+- [x] Manual AE smoke-test checklist in `docs/ACCEPTANCE.md`.
+- [x] Static Photoshop adapter regression plus real-host smoke checklist in `docs/ACCEPTANCE.md`.
+- [x] Manual Illustrator smoke-test checklist in `docs/ACCEPTANCE.md`.
+- [x] Full one-prompt review/repair/checkpoint acceptance checklist in `docs/ACCEPTANCE.md`.

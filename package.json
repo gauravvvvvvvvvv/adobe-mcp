@@ -6,7 +6,8 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "adobe-mcp": "dist/index.js"
+    "adobe-mcp": "dist/index.js",
+    "adobe-mcp-setup": "dist/setup-client.js"
   },
   "files": [
     "dist",
@@ -25,7 +26,14 @@
     "install:windows": "powershell -ExecutionPolicy Bypass -File scripts/install-windows.ps1",
     "uninstall:windows": "powershell -ExecutionPolicy Bypass -File scripts/uninstall-windows.ps1",
     "check": "npm run typecheck && npm test && npm run build",
-    "test": "node --import tsx --test tests/**/*.test.ts"
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "install:macos": "bash scripts/install-macos.sh",
+    "uninstall:macos": "bash scripts/uninstall-macos.sh",
+    "photoshop:dev:windows": "powershell -ExecutionPolicy Bypass -File scripts/enable-photoshop-dev-windows.ps1",
+    "photoshop:dev:macos": "bash scripts/enable-photoshop-dev-macos.sh",
+    "setup:codex": "tsx src/setup-client.ts --client codex",
+    "setup:claude": "tsx src/setup-client.ts --client claude",
+    "prepack": "npm run check"
   },
   "keywords": [
     "mcp",

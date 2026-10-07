@@ -36,11 +36,15 @@ v0.1 includes:
 - universal MCP facade
 - compact capability search instead of hundreds of advertised tools
 - localhost WebSocket broker with automatic adapter reconnect
-- compact in-memory host context cache
+- persistent hashed host context cache
 - local Adobe install discovery
 - Photoshop UXP adapter
 - universal CEP adapter for Premiere Pro, After Effects, Illustrator and InDesign
-- Windows manual install/uninstall scripts for the CEP adapter
+- Windows and macOS install/uninstall scripts for the CEP adapter
+- persistent EditSpec jobs with checkpoint/rollback, artifact manifests and crash-safe resume
+- reference-video scene/pacing/silence/loudness analysis
+- reusable professional edit/motion/compositing recipes
+- typed Premiere, After Effects, Photoshop and Illustrator semantic operations
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/CAPABILITIES.md](docs/CAPABILITIES.md).
 
@@ -66,7 +70,19 @@ npm run install:windows
 
 This copies the universal CEP bridge into the current user's Adobe CEP extensions directory and enables CEP local-development mode. Restart an already-running supported Adobe host once so it discovers the newly installed extension.
 
-For Photoshop development, load `adapters/photoshop-uxp/manifest.json` with Adobe UXP Developer Tool. Packaging the UXP adapter for manual installation is a later task.
+For Photoshop development, enable UXP Developer Mode and load `adapters/photoshop-uxp/manifest.json` with Adobe UXP Developer Tool:
+
+```powershell
+npm run photoshop:dev:windows
+```
+
+On macOS:
+
+```bash
+npm run photoshop:dev:macos
+```
+
+Adobe's UXP packaging flow produces a `.ccx` through UXP Developer Tool. This repository does not fake a hand-built CCX; see `docs/INSTALL.md`.
 
 MCP client configuration after a local/global package install:
 
@@ -93,3 +109,19 @@ It does not depend on Creative Cloud being the install source. It also does not 
 ## License
 
 MIT
+
+
+## Configure Codex or Claude Code
+
+After installing/linking the package so `adobe-mcp` is on PATH:
+
+```bash
+adobe-mcp-setup --client codex
+adobe-mcp-setup --client claude
+```
+
+Use `--force` only when you intentionally want to replace an existing MCP server named `adobe`.
+
+## Reality check
+
+The core creative workflow is implemented and testable without exposing hundreds of model-facing tools. Real-host acceptance still depends on the Adobe versions installed on the target machine. Run `npm run doctor`, then follow `docs/ACCEPTANCE.md` before treating a particular host/version combination as production-verified.

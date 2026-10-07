@@ -1,19 +1,43 @@
 # Photoshop UXP adapter
 
-This is the first live host adapter for Adobe MCP.
+The Photoshop adapter connects to the local Adobe MCP broker at `127.0.0.1:38470`, keeps the socket alive while its panel is hidden, and reconnects automatically.
 
-## Development install
+## Typed coverage
 
-Load `manifest.json` with Adobe UXP Developer Tool, then open the **Adobe MCP** panel in Photoshop once. The adapter keeps its WebSocket connection alive when the panel is hidden and reconnects automatically when the MCP process appears.
+Current typed operations include:
 
-The adapter currently implements:
+- document create/open/resize/crop/duplicate/save
+- pixel/text/group creation
+- active-layer rename/opacity/visibility/duplicate/delete/rotate/scale/grouping
+- text create/content/size basics
+- selection all/deselect/invert/rectangle/ellipse/select-subject
+- mask from selection
+- brightness/contrast and levels
+- Gaussian Blur and Sharpen
+- Smart Object replace-contents
+- PNG/JPEG/PSD/PSB save-as
+- generic `batchPlay` descriptors as an escape hatch for operations not yet typed
 
-- compact context inspection
-- active-layer rename
-- active-layer opacity
-- active-layer visibility
-- generic `batchPlay` descriptors as a temporary broad escape hatch for the remaining Photoshop semantic capabilities
+The manifest requests `localFileSystem: fullAccess` because an autonomous local agent needs to address explicit local source/output paths without opening a file picker for every operation. Installation/loading therefore requires explicit user consent.
 
-Typed semantic handlers will replace common raw descriptors over time so agents do not need to generate verbose Action Manager payloads for routine edits.
+## Local development install
 
-The bridge only talks to `127.0.0.1:38470`.
+Windows:
+
+```powershell
+npm run photoshop:dev:windows
+```
+
+macOS:
+
+```bash
+npm run photoshop:dev:macos
+```
+
+Then add `manifest.json` in Adobe UXP Developer Tool and load the plugin in Photoshop.
+
+## Distribution
+
+Adobe-supported UXP distribution uses a `.ccx` package produced by UXP Developer Tool. Package this adapter through UDT rather than hand-assembling a ZIP.
+
+See `docs/INSTALL.md` and `docs/ACCEPTANCE.md`.

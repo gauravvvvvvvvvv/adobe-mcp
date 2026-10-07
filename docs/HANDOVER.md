@@ -212,3 +212,12 @@ Follow the live checklist in `docs/TASKS.md`. Current priority is:
 7. unit/static tests
 8. manual real-host acceptance passes
 
+
+
+## Installation contract
+
+- `npm run install:windows` / `npm run install:macos` install the universal CEP adapter.
+- `npm run photoshop:dev:windows` / `npm run photoshop:dev:macos` enable UXP development loading.
+- Photoshop distribution packages must be produced as `.ccx` with Adobe UXP Developer Tool; do not hand-roll the ZIP format and call it a supported installer.
+- `adobe-mcp-setup --client codex|claude` registers the local stdio server through each client's own CLI. It does not overwrite an existing `adobe` entry without `--force`.
+- Run `npm run doctor` after installation.
