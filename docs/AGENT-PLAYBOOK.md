@@ -8,7 +8,7 @@ For non-trivial creative work:
 
 1. Check `adobe_status`.
 2. Use `creative.assets.analyze` for folders/large source sets, or `creative.assets.index` for a few files.
-3. Use `creative.reference.analyze` for reference videos.
+3. Use `creative.reference.analyze` for reference videos; use `creative.audio.analyze` when music/dialogue rhythm should drive cut timing.
 4. Use `creative.assets.review` on shortlisted media, inspect contact sheets first, and request proxies only for finalists.
 5. Search/expand a professional recipe when one fits.
 6. Build a compact EditSpec with explicit deliverables and acceptance criteria.
@@ -36,7 +36,7 @@ A successful Adobe command is not a successful edit.
 
 ## Master video edits
 
-Plan story/selects first, assemble, run timeline QA, refine trims/J-L/beat cuts, add B-roll/graphics, use AE where it genuinely helps, mix, grade, caption, export, validate, review, then repair.
+Plan story/selects first, derive local rhythm/silence evidence when useful, assemble, run timeline QA, refine trims/J-L/beat cuts, add B-roll/graphics, use AE where it genuinely helps, mix, grade, caption, export, validate, review, then repair.
 
 Never call something "master level" merely because many operations executed.
 

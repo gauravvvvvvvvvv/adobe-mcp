@@ -28,6 +28,10 @@ const GUIDES: Record<string, CapabilityGuide> = {
       notes: ["Prefer exactHash=false for very large footage sets unless byte-identical duplicate proof is needed."]
     }
   ),
+  "creative.audio.analyze": G(
+    { inputPath: "D:/media/music.wav", silenceDb: -40, minSilenceSeconds: 0.35, onsetSensitivity: 1.8, minOnsetSpacingSeconds: 0.18 },
+    { required: ["inputPath"], optional: ["sampleRate", "frameMs", "silenceDb", "minSilenceSeconds", "onsetSensitivity", "minOnsetSpacingSeconds", "maxSeconds", "maxOnsets"], notes: ["Onsets are local energy peaks suitable for edit timing; tempo is an estimate, not a DAW-grade beat grid."] }
+  ),
   "creative.assets.review": G(
     { paths: ["D:/media/a.mp4", "D:/media/b.mp4"], outputDir: "D:/project/.adobe-mcp/source-review", maxAssets: 12, contactFrames: 9, includeProxy: false, includeWaveform: false, reuseExisting: true },
     { required: ["paths[]", "outputDir"], optional: ["jobId", "maxAssets", "proxyWidth", "contactFrames", "includeProxy", "includeContactSheet", "includeWaveform", "reuseExisting"], notes: ["Inspect cached contact sheets first; request proxies only for finalists to minimize compute and model context."] }

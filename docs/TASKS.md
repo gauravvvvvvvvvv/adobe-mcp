@@ -2,7 +2,7 @@
 
 This file is the live implementation checklist. **Every implementation commit must update this file.**
 
-Last updated commit target: cache-aware batched source review for token-efficient visual shortlisting after `e1d8e8d4`.
+Last updated commit target: local ffmpeg rhythm/silence analysis for beat-aware one-prompt edits after `eabbc17f`.
 
 Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
@@ -23,6 +23,7 @@ Legend: [x] done, [~] usable but incomplete, [ ] not done.
 
 ## Runtime / agent workflow
 
+- [x] `creative.audio.analyze` locally extracts silence regions, energy onsets and tempo estimates with ffmpeg so beat-aware planning does not require model-side audio decoding.
 - [x] Cache-aware `creative.assets.review` batches bounded source contact-sheet generation with optional proxies/waveforms and reuses fresh artifacts across planning/repair passes.
 - [x] `inspect_context(fresh=true)` routes each host to its real inspect operation (standard context, Media Encoder queue status, Lightroom catalog inspect, Acrobat PDF inspect, Substance project inspect).
 - [x] `get_capability` returns on-demand parameter/operation/example guides for high-value semantic calls while `search_capabilities` remains lean.

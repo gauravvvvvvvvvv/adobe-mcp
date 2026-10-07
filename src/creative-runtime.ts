@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { analyzeAssets } from "./asset-analysis.js";
+import { analyzeAudioRhythm } from "./audio-analysis.js";
 import { indexAssets } from "./assets.js";
 import { getCapability } from "./catalog.js";
 import { editSpecSchema, validateEditSpec, type EditSpec } from "./creative-spec.js";
@@ -236,6 +237,20 @@ export class CreativeRuntime {
         silenceMinSeconds: typeof params.silenceMinSeconds === "number" ? params.silenceMinSeconds : undefined,
         maxFrames: typeof params.maxFrames === "number" ? params.maxFrames : undefined,
         proxyWidth: typeof params.proxyWidth === "number" ? params.proxyWidth : undefined
+      });
+    }
+
+    if (capability === "creative.audio.analyze") {
+      if (typeof params.inputPath !== "string") throw new Error("inputPath_required");
+      return analyzeAudioRhythm(params.inputPath, {
+        sampleRate: typeof params.sampleRate === "number" ? params.sampleRate : undefined,
+        frameMs: typeof params.frameMs === "number" ? params.frameMs : undefined,
+        silenceDb: typeof params.silenceDb === "number" ? params.silenceDb : undefined,
+        minSilenceSeconds: typeof params.minSilenceSeconds === "number" ? params.minSilenceSeconds : undefined,
+        minOnsetSpacingSeconds: typeof params.minOnsetSpacingSeconds === "number" ? params.minOnsetSpacingSeconds : undefined,
+        onsetSensitivity: typeof params.onsetSensitivity === "number" ? params.onsetSensitivity : undefined,
+        maxSeconds: typeof params.maxSeconds === "number" ? params.maxSeconds : undefined,
+        maxOnsets: typeof params.maxOnsets === "number" ? params.maxOnsets : undefined
       });
     }
 
